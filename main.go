@@ -39,6 +39,8 @@ func initLogger() {
 func main() {
 	initLogger()
 
+	configFile := "keys4.config.json"
+
 	root := &cobra.Command{Use: "keys4"}
 	root.AddCommand(&cobra.Command{
 		Use:   "init [file]",
@@ -49,7 +51,7 @@ func main() {
 				return
 			}
 
-			if err := cmd.CmdInit("keys4.config.json", args[0], ""); err != nil {
+			if err := cmd.CmdInit(configFile, args[0], ""); err != nil {
 				log.Err(err).Stack().Msg("Failed to initialize keys4 project")
 				return
 			}
@@ -59,7 +61,7 @@ func main() {
 		Use:   "sync",
 		Short: "Synchronize the project",
 		Run: func(command *cobra.Command, args []string) {
-			if err := cmd.CmdSync("keys4.config.json"); err != nil {
+			if err := cmd.CmdSync(configFile); err != nil {
 				log.Error().Stack().Err(err).Msg("Failed to synchronize the project")
 				return
 			}
