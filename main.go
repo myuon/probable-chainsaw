@@ -5,8 +5,16 @@ import (
 	"github.com/go-git/go-git/v5/plumbing/object"
 	"github.com/rs/zerolog"
 	"github.com/rs/zerolog/log"
+	"gorm.io/driver/sqlite"
+	"gorm.io/gorm"
 	"os"
 )
+
+type Commit struct {
+	Hash       string `sql:"primaryKey"`
+	AuthorName string
+	CreatedAt  int64
+}
 
 type Repository struct {
 	Dir string
@@ -27,29 +35,34 @@ func (r Repository) CleanUp() error {
 	return os.RemoveAll(r.Dir)
 }
 
-func (r Repository) Execute() error {
+func (r Repository) FetchCommits() ([]Commit, error) {
 	repo, err := git.PlainClone(r.Dir, false, &git.CloneOptions{
 		URL:      "https://github.com/myuon/quartz",
 		Progress: os.Stdout,
 	})
 	if err != nil {
-		return err
+		return nil, err
 	}
 
 	commits, err := repo.Log(&git.LogOptions{})
 	if err != nil {
-		return err
+		return nil, err
 	}
 
+	result := []Commit{}
 	if err := commits.ForEach(func(c *object.Commit) error {
-		log.Info().Str("created_at", c.Author.When.String()).Msgf("%s", c.Hash)
+		result = append(result, Commit{
+			Hash:       c.Hash.String(),
+			AuthorName: c.Author.Name,
+			CreatedAt:  c.Author.When.Unix(),
+		})
 
 		return nil
 	}); err != nil {
-		return err
+		return nil, err
 	}
 
-	return nil
+	return result, nil
 }
 
 func run() error {
@@ -59,7 +72,21 @@ func run() error {
 	}
 	defer repo.CleanUp()
 
-	if err := repo.Execute(); err != nil {
+	db, err := gorm.Open(sqlite.Open("./data.db"), &gorm.Config{})
+	if err != nil {
+		return err
+	}
+
+	commits, err := repo.FetchCommits()
+	if err != nil {
+		return err
+	}
+
+	if err := db.AutoMigrate(&Commit{}); err != nil {
+		return err
+	}
+
+	if err := db.Create(&commits).Error; err != nil {
 		return err
 	}
 
