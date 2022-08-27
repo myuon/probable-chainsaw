@@ -5,6 +5,8 @@ import (
 	"github.com/go-git/go-git/v5/plumbing/object"
 	"github.com/go-git/go-git/v5/plumbing/transport/ssh"
 	"github.com/myuon/probable-chainsaw/model"
+	"github.com/pkg/errors"
+	"github.com/rs/zerolog/log"
 	"gorm.io/driver/sqlite"
 	"gorm.io/gorm"
 	"os"
@@ -31,6 +33,8 @@ func CmdSync(configPath string) error {
 		return err
 	}
 	defer project.CleanUp()
+
+	log.Info().Str("path", project.Path).Msg("Setup")
 
 	db, err := gorm.Open(sqlite.Open(project.SqliteFile), &gorm.Config{})
 	if err != nil {
@@ -76,7 +80,7 @@ func CmdSync(configPath string) error {
 	}
 
 	// find deployed commits from "deploy" branch
-	commits, err = project.FetchCommitsFromBranch("deploy", repo)
+	commits, err = project.FetchCommitsFromBranch("origin/deploy", repo)
 	if err != nil {
 		return err
 	}
@@ -89,17 +93,17 @@ func CmdSync(configPath string) error {
 
 		parent, err := c.Parent(1)
 		if err != nil {
-			return err
+			return errors.WithStack(err)
 		}
 
 		r := model.Commit{}
-		if err := db.Where("hash = ?", parent.Hash).Find(&r).Error; err != nil {
-			return err
+		if err := db.Where("hash = ?", parent.Hash.String()).First(&r).Error; err != nil {
+			return errors.WithStack(err)
 		}
 
 		r.DeployTag = c.Hash.String()
 		if err := db.Save(&r).Error; err != nil {
-			return err
+			return errors.WithStack(err)
 		}
 
 		return nil

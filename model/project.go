@@ -2,6 +2,7 @@ package model
 
 import (
 	"github.com/go-git/go-git/v5"
+	"github.com/go-git/go-git/v5/plumbing"
 	"github.com/go-git/go-git/v5/plumbing/object"
 	"github.com/go-git/go-git/v5/plumbing/transport"
 	"github.com/pkg/errors"
@@ -56,22 +57,17 @@ func (r Project) FetchCommits(repo *git.Repository) (object.CommitIter, error) {
 	return commits, nil
 }
 
-func (r Project) FetchCommitsFromBranch(branchName string, repo *git.Repository) (object.CommitIter, error) {
-	br, err := repo.Branch(branchName)
+func (r Project) FetchCommitsFromBranch(branchName plumbing.Revision, repo *git.Repository) (object.CommitIter, error) {
+	ref, err := repo.ResolveRevision(branchName)
 	if err != nil {
-		return nil, errors.Wrap(err, "git")
-	}
-
-	ref, err := repo.Reference(br.Merge, true)
-	if err != nil {
-		return nil, err
+		return nil, errors.WithStack(err)
 	}
 
 	commits, err := repo.Log(&git.LogOptions{
-		From: ref.Hash(),
+		From: *ref,
 	})
 	if err != nil {
-		return nil, err
+		return nil, errors.WithStack(err)
 	}
 
 	return commits, nil
