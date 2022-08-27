@@ -73,14 +73,11 @@ func CmdReport(configFile string) error {
 	}
 
 	sort.Ints(deployCountMetrics)
-	median := deployCountMetrics[len(deployCountMetrics)/2]
 
 	markdown += fmt.Sprintf(`## Deployment frequency
-- median: %v
+`)
 
-`, median)
-
-	markdown += `|Sun|Mon|Tue|Wed|Thu|Fri|Sat|MedianOfWeekday|
+	markdown += `|Sun|Mon|Tue|Wed|Thu|Fri|Sat|SumOfWeekday|
 |---|---|---|---|---|---|---|---|`
 
 	current = StartOfMonth(today)
@@ -112,8 +109,12 @@ func CmdReport(configFile string) error {
 
 		if current.Weekday() == 0 {
 			sort.Ints(week)
+			w := 0
+			for _, c := range week {
+				w += c
+			}
 
-			markdown += fmt.Sprintf("%v|", week[len(week)/2])
+			markdown += fmt.Sprintf("%v|", w)
 			week = []int{}
 		}
 	}
