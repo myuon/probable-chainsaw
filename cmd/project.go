@@ -37,10 +37,6 @@ func SaveProject(configFilePath string, project model.Project) error {
 		return err
 	}
 
-	if Exists(configFilePath) {
-		return errors.New(fmt.Sprintf("%v already exists", configFilePath))
-	}
-
 	if err := os.WriteFile(configFilePath, bin, 0644); err != nil {
 		return err
 	}

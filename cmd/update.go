@@ -6,8 +6,15 @@ import (
 	"github.com/rs/zerolog/log"
 	"gorm.io/driver/sqlite"
 	"gorm.io/gorm"
+	"os/exec"
+	"strings"
 	"time"
 )
+
+type DeploymentCommitRelation struct {
+	DeploymentId model.DeploymentId `gorm:"primaryKey"`
+	CommitHash   string             `gorm:"primaryKey"`
+}
 
 func CmdUpdate(configFile string) error {
 	project, err := LoadProject(configFile)
@@ -19,10 +26,10 @@ func CmdUpdate(configFile string) error {
 	if err != nil {
 		return err
 	}
-	if err := db.Migrator().DropTable(&model.Deployment{}); err != nil {
+	if err := db.Migrator().DropTable(&model.Deployment{}, &DeploymentCommitRelation{}); err != nil {
 		return err
 	}
-	if err := db.AutoMigrate(&model.Deployment{}); err != nil {
+	if err := db.AutoMigrate(&model.Deployment{}, &DeploymentCommitRelation{}); err != nil {
 		return err
 	}
 
@@ -39,18 +46,39 @@ func CmdUpdate(configFile string) error {
 			return err
 		}
 
-		deployments := []model.Deployment{}
 		for _, c := range commits {
-			deployments = append(deployments, model.Deployment{
+			deployment := model.Deployment{
 				Id:           model.NewDeploymentId(),
 				DeployedTime: time.Unix(c.CreatedAt, 0).Format("2006-01-02 15:04:05"),
-			})
-		}
+				CommitHash:   c.Hash,
+			}
 
-		if len(deployments) > 0 {
-			if err := db.Save(&deployments).Error; err != nil {
+			if err := db.Create(&deployment).Error; err != nil {
 				return err
 			}
+
+			bin, err := exec.Command("git", "-C", project.Path, "log", "--pretty=format:%H", fmt.Sprintf("%v..%v", c.Parent, c.Hash)).Output()
+			if err != nil {
+				return err
+			}
+
+			relations := []DeploymentCommitRelation{}
+			for _, hash := range strings.Split(string(bin), "\n") {
+				if hash == "" {
+					continue
+				}
+
+				relations = append(relations, DeploymentCommitRelation{
+					DeploymentId: deployment.Id,
+					CommitHash:   hash,
+				})
+			}
+
+			if err := db.Create(&relations).Error; err != nil {
+				return err
+			}
+
+			log.Log().Msgf("%v", string(bin))
 		}
 
 		log.Info().Int(fmt.Sprintf("%v (%v)", date.Format("2006-01-02"), date.Weekday()), len(commits)).Msg("Deployment frequency")

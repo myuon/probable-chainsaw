@@ -33,7 +33,7 @@ func CmdSync(configPath string) error {
 	if err := project.Setup(); err != nil {
 		return err
 	}
-	defer project.CleanUp()
+	defer SaveProject(configPath, project)
 
 	log.Info().Str("path", project.Path).Msg("Setup")
 
@@ -66,11 +66,18 @@ func CmdSync(configPath string) error {
 		return err
 	}
 	if err := commits.ForEach(func(c *object.Commit) error {
+		parent := ""
+		p, err := c.Parent(0)
+		if err == nil {
+			parent = p.Hash.String()
+		}
+
 		if err := db.Create(&model.Commit{
 			Hash:       c.Hash.String(),
 			AuthorName: c.Author.Name,
 			CreatedAt:  c.Author.When.Unix(),
 			DeployTag:  "",
+			Parent:     parent,
 		}).Error; err != nil {
 			return err
 		}

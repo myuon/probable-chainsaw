@@ -11,4 +11,5 @@ func NewDeploymentId() DeploymentId {
 type Deployment struct {
 	Id           DeploymentId `gorm:"primaryKey"`
 	DeployedTime string
+	CommitHash   string
 }

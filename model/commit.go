@@ -5,4 +5,5 @@ type Commit struct {
 	AuthorName string
 	CreatedAt  int64
 	DeployTag  string
+	Parent     string
 }
