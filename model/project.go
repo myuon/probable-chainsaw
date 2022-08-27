@@ -7,14 +7,8 @@ import (
 	"os"
 )
 
-type Commit struct {
-	Hash       string `sql:"primaryKey"`
-	AuthorName string
-	CreatedAt  int64
-}
-
 type Project struct {
-	Dir           string `json:"path"`
+	Path          string `json:"path"`
 	RepositoryUrl string `json:"repositoryUrl"`
 	SqliteFile    string `json:"sqliteFile"`
 }
@@ -25,22 +19,22 @@ func (r *Project) Setup() error {
 		return err
 	}
 
-	r.Dir = dir
+	r.Path = dir
 
 	return nil
 }
 
 func (r *Project) CleanUp() error {
-	if err := os.RemoveAll(r.Dir); err != nil {
+	if err := os.RemoveAll(r.Path); err != nil {
 		return err
 	}
-	r.Dir = ""
+	r.Path = ""
 
 	return nil
 }
 
 func (r Project) Clone(auth transport.AuthMethod) (*git.Repository, error) {
-	repo, err := git.PlainClone(r.Dir, false, &git.CloneOptions{
+	repo, err := git.PlainClone(r.Path, false, &git.CloneOptions{
 		URL:      r.RepositoryUrl,
 		Progress: os.Stdout,
 		Auth:     auth,
@@ -52,24 +46,32 @@ func (r Project) Clone(auth transport.AuthMethod) (*git.Repository, error) {
 	return repo, nil
 }
 
-func (r Project) FetchCommits(repo *git.Repository) ([]Commit, error) {
+func (r Project) FetchCommits(repo *git.Repository) (object.CommitIter, error) {
 	commits, err := repo.Log(&git.LogOptions{})
 	if err != nil {
 		return nil, err
 	}
 
-	result := []Commit{}
-	if err := commits.ForEach(func(c *object.Commit) error {
-		result = append(result, Commit{
-			Hash:       c.Hash.String(),
-			AuthorName: c.Author.Name,
-			CreatedAt:  c.Author.When.Unix(),
-		})
+	return commits, nil
+}
 
-		return nil
-	}); err != nil {
+func (r Project) FetchCommitsFromBranch(branchName string, repo *git.Repository) (object.CommitIter, error) {
+	br, err := repo.Branch(branchName)
+	if err != nil {
 		return nil, err
 	}
 
-	return result, nil
+	ref, err := repo.Reference(br.Merge, true)
+	if err != nil {
+		return nil, err
+	}
+
+	commits, err := repo.Log(&git.LogOptions{
+		From: ref.Hash(),
+	})
+	if err != nil {
+		return nil, err
+	}
+
+	return commits, nil
 }

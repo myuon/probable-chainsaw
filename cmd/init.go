@@ -15,7 +15,7 @@ func CmdInit(
 	}
 
 	p := model.Project{
-		Dir:           "",
+		Path:          "",
 		RepositoryUrl: repositoryUrl,
 		SqliteFile:    sqliteFilePath,
 	}
