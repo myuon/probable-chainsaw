@@ -68,6 +68,16 @@ func main() {
 		},
 	})
 	root.AddCommand(&cobra.Command{
+		Use:   "update",
+		Short: "Update the data and statistics",
+		Run: func(command *cobra.Command, args []string) {
+			if err := cmd.CmdUpdate(configFile); err != nil {
+				log.Error().Stack().Err(err).Msg("Failed to report the project")
+				return
+			}
+		},
+	})
+	root.AddCommand(&cobra.Command{
 		Use:   "report",
 		Short: "Report the project",
 		Run: func(command *cobra.Command, args []string) {
