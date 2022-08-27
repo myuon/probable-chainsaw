@@ -16,11 +16,12 @@ type Commit struct {
 	CreatedAt  int64
 }
 
-type Repository struct {
-	Dir string
+type Project struct {
+	Dir           string `json:"path"`
+	RepositoryUrl string `json:"repositoryUrl"`
 }
 
-func (r *Repository) Setup() error {
+func (r *Project) Setup() error {
 	dir, err := os.MkdirTemp("", "repository")
 	if err != nil {
 		return err
@@ -31,13 +32,13 @@ func (r *Repository) Setup() error {
 	return nil
 }
 
-func (r Repository) CleanUp() error {
+func (r Project) CleanUp() error {
 	return os.RemoveAll(r.Dir)
 }
 
-func (r Repository) FetchCommits() ([]Commit, error) {
+func (r Project) FetchCommits() ([]Commit, error) {
 	repo, err := git.PlainClone(r.Dir, false, &git.CloneOptions{
-		URL:      "https://github.com/myuon/quartz",
+		URL:      r.RepositoryUrl,
 		Progress: os.Stdout,
 	})
 	if err != nil {
@@ -66,18 +67,22 @@ func (r Repository) FetchCommits() ([]Commit, error) {
 }
 
 func run() error {
-	repo := Repository{}
-	if err := repo.Setup(); err != nil {
+	project := Project{
+		Dir:           "",
+		RepositoryUrl: "https://github.com/myuon/quartz",
+	}
+
+	if err := project.Setup(); err != nil {
 		return err
 	}
-	defer repo.CleanUp()
+	defer project.CleanUp()
 
 	db, err := gorm.Open(sqlite.Open("./data.db"), &gorm.Config{})
 	if err != nil {
 		return err
 	}
 
-	commits, err := repo.FetchCommits()
+	commits, err := project.FetchCommits()
 	if err != nil {
 		return err
 	}
