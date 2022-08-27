@@ -4,7 +4,9 @@ go 1.19
 
 require (
 	github.com/go-git/go-git/v5 v5.4.2
+	github.com/pkg/errors v0.9.1
 	github.com/rs/zerolog v1.27.0
+	github.com/spf13/cobra v1.5.0
 	gorm.io/driver/sqlite v1.3.6
 	gorm.io/gorm v1.23.8
 )
@@ -28,7 +30,6 @@ require (
 	github.com/mattn/go-sqlite3 v1.14.15 // indirect
 	github.com/mitchellh/go-homedir v1.1.0 // indirect
 	github.com/sergi/go-diff v1.2.0 // indirect
-	github.com/spf13/cobra v1.5.0 // indirect
 	github.com/spf13/pflag v1.0.5 // indirect
 	github.com/stretchr/testify v1.8.0 // indirect
 	github.com/xanzy/ssh-agent v0.3.2 // indirect

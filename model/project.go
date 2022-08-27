@@ -4,6 +4,7 @@ import (
 	"github.com/go-git/go-git/v5"
 	"github.com/go-git/go-git/v5/plumbing/object"
 	"github.com/go-git/go-git/v5/plumbing/transport"
+	"github.com/pkg/errors"
 	"os"
 )
 
@@ -58,7 +59,7 @@ func (r Project) FetchCommits(repo *git.Repository) (object.CommitIter, error) {
 func (r Project) FetchCommitsFromBranch(branchName string, repo *git.Repository) (object.CommitIter, error) {
 	br, err := repo.Branch(branchName)
 	if err != nil {
-		return nil, err
+		return nil, errors.Wrap(err, "git")
 	}
 
 	ref, err := repo.Reference(br.Merge, true)
