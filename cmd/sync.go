@@ -10,6 +10,7 @@ import (
 	"gorm.io/driver/sqlite"
 	"gorm.io/gorm"
 	"os"
+	"strings"
 )
 
 // See also: https://github.com/go-git/go-git/issues/411
@@ -86,6 +87,11 @@ func CmdSync(configPath string) error {
 	}
 
 	if err := commits.ForEach(func(c *object.Commit) error {
+		// check if this is a merge commit from "master" branch
+		if !(strings.Contains(c.Message, "Merge pull request") && strings.Contains(c.Message, "master")) {
+			return nil
+		}
+
 		// skip if it is not a merge commit
 		if c.NumParents() != 2 {
 			return nil
