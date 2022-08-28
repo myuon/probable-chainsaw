@@ -2,15 +2,12 @@ package cmd
 
 import (
 	"fmt"
-	"github.com/go-git/go-git/v5/plumbing/object"
 	"github.com/go-git/go-git/v5/plumbing/transport/ssh"
-	"github.com/myuon/probable-chainsaw/model"
-	"github.com/pkg/errors"
+	"github.com/myuon/probable-chainsaw/infra"
 	"github.com/rs/zerolog/log"
 	"gorm.io/driver/sqlite"
 	"gorm.io/gorm"
 	"os"
-	"strings"
 )
 
 // See also: https://github.com/go-git/go-git/issues/411
@@ -24,7 +21,7 @@ func SshAuth() (*ssh.PublicKeys, error) {
 }
 
 func CmdSync(configPath string) error {
-	project, err := LoadProject(configPath)
+	project, err := infra.LoadProject(configPath)
 	if err != nil {
 		return err
 	}
@@ -33,7 +30,7 @@ func CmdSync(configPath string) error {
 	if err := project.Setup(); err != nil {
 		return err
 	}
-	defer SaveProject(configPath, project)
+	defer infra.SaveProject(configPath, project)
 
 	log.Info().Str("path", project.Path).Msg("Setup")
 
@@ -42,12 +39,12 @@ func CmdSync(configPath string) error {
 		return err
 	}
 
-	// clear all
-	if err := db.Migrator().DropTable(&model.Commit{}); err != nil {
-		return err
+	commitRepository := infra.CommitRepository{
+		Db: db,
 	}
 
-	if err := db.AutoMigrate(&model.Commit{}); err != nil {
+	// clear all
+	if err := commitRepository.ResetTable(); err != nil {
 		return err
 	}
 
@@ -65,25 +62,8 @@ func CmdSync(configPath string) error {
 	if err != nil {
 		return err
 	}
-	if err := commits.ForEach(func(c *object.Commit) error {
-		parent := ""
-		p, err := c.Parent(0)
-		if err == nil {
-			parent = p.Hash.String()
-		}
 
-		if err := db.Create(&model.Commit{
-			Hash:       c.Hash.String(),
-			AuthorName: c.Author.Name,
-			CreatedAt:  c.Author.When.Unix(),
-			DeployTag:  "",
-			Parent:     parent,
-		}).Error; err != nil {
-			return err
-		}
-
-		return nil
-	}); err != nil {
+	if err := commitRepository.Save(commits); err != nil {
 		return err
 	}
 
@@ -93,34 +73,7 @@ func CmdSync(configPath string) error {
 		return err
 	}
 
-	if err := commits.ForEach(func(c *object.Commit) error {
-		// check if this is a merge commit from "master" branch
-		if !(strings.Contains(c.Message, "Merge pull request") && strings.Contains(c.Message, "master")) {
-			return nil
-		}
-
-		// skip if it is not a merge commit
-		if c.NumParents() != 2 {
-			return nil
-		}
-
-		parent, err := c.Parent(1)
-		if err != nil {
-			return errors.WithStack(err)
-		}
-
-		r := model.Commit{}
-		if err := db.Where("hash = ?", parent.Hash.String()).First(&r).Error; err != nil {
-			return errors.WithStack(err)
-		}
-
-		r.DeployTag = c.Hash.String()
-		if err := db.Save(&r).Error; err != nil {
-			return errors.WithStack(err)
-		}
-
-		return nil
-	}); err != nil {
+	if err := commitRepository.UpdateDeployTags("master", commits); err != nil {
 		return err
 	}
 

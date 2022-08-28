@@ -2,6 +2,7 @@ package cmd
 
 import (
 	"fmt"
+	"github.com/myuon/probable-chainsaw/infra"
 	"github.com/myuon/probable-chainsaw/model"
 	"github.com/rs/zerolog/log"
 	"gorm.io/driver/sqlite"
@@ -18,7 +19,7 @@ type DeploymentCommitRelation struct {
 }
 
 func CmdUpdate(configFile string) error {
-	project, err := LoadProject(configFile)
+	project, err := infra.LoadProject(configFile)
 	if err != nil {
 		return err
 	}

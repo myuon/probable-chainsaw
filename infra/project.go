@@ -1,4 +1,4 @@
-package cmd
+package infra
 
 import (
 	"encoding/json"

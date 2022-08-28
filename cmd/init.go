@@ -1,6 +1,7 @@
 package cmd
 
 import (
+	"github.com/myuon/probable-chainsaw/infra"
 	"github.com/myuon/probable-chainsaw/model"
 	"github.com/rs/zerolog/log"
 )
@@ -20,7 +21,7 @@ func CmdInit(
 		SqliteFile:    sqliteFilePath,
 	}
 
-	if err := SaveProject(configFilePath, p); err != nil {
+	if err := infra.SaveProject(configFilePath, p); err != nil {
 		return err
 	}
 
