@@ -13,12 +13,6 @@ import (
 	"time"
 )
 
-type DeploymentCommitRelation struct {
-	DeploymentId model.DeploymentId `gorm:"primaryKey"`
-	CommitHash   string             `gorm:"primaryKey"`
-	LeadTime     int64
-}
-
 func CmdUpdate(configFile string) error {
 	project, err := infra.LoadProject(configFile)
 	if err != nil {
@@ -29,10 +23,15 @@ func CmdUpdate(configFile string) error {
 	if err != nil {
 		return err
 	}
-	if err := db.Migrator().DropTable(&model.Deployment{}, &DeploymentCommitRelation{}); err != nil {
+	if err := db.Migrator().DropTable(&model.Deployment{}); err != nil {
 		return err
 	}
-	if err := db.AutoMigrate(&model.Deployment{}, &DeploymentCommitRelation{}); err != nil {
+	if err := db.AutoMigrate(&model.Deployment{}); err != nil {
+		return err
+	}
+
+	deploymentCommitRelationRepository := infra.DeploymentCommitRelationRepository{Db: db}
+	if err := deploymentCommitRelationRepository.ResetTable(); err != nil {
 		return err
 	}
 
@@ -65,19 +64,19 @@ func CmdUpdate(configFile string) error {
 				return err
 			}
 
-			relations := []DeploymentCommitRelation{}
+			relations := []infra.DeploymentCommitRelation{}
 			for _, hash := range strings.Split(string(bin), "\n") {
 				if hash == "" {
 					continue
 				}
 
-				relations = append(relations, DeploymentCommitRelation{
+				relations = append(relations, infra.DeploymentCommitRelation{
 					DeploymentId: deployment.Id,
 					CommitHash:   hash,
 				})
 			}
 
-			if err := db.Create(&relations).Error; err != nil {
+			if err := deploymentCommitRelationRepository.Create(relations); err != nil {
 				return err
 			}
 
@@ -98,7 +97,7 @@ func CmdUpdate(configFile string) error {
 	rs := []Joined{}
 
 	if err := db.
-		Model(&DeploymentCommitRelation{}).
+		Model(&infra.DeploymentCommitRelation{}).
 		Joins("INNER JOIN deployments ON deployments.id = deployment_commit_relations.deployment_id").
 		Joins("INNER JOIN commits ON deployment_commit_relations.commit_hash = commits.hash").
 		Select("deployments.id AS deployment_id, deployments.commit_hash, deployments.deployed_time AS deployed_at, commits.created_at AS committed_at").
@@ -107,6 +106,7 @@ func CmdUpdate(configFile string) error {
 		return err
 	}
 
+	relations := []infra.DeploymentCommitRelation{}
 	for _, r := range rs {
 		deployedAt, err := time.Parse("2006-01-02 15:04:05", r.DeployedAt)
 		if err != nil {
@@ -114,13 +114,14 @@ func CmdUpdate(configFile string) error {
 		}
 		committedAt := r.CommittedAt
 
-		if err := db.Save(&DeploymentCommitRelation{
+		relations = append(relations, infra.DeploymentCommitRelation{
 			DeploymentId: r.DeploymentId,
 			CommitHash:   r.CommitHash,
 			LeadTime:     deployedAt.Unix() - committedAt,
-		}).Error; err != nil {
-			return err
-		}
+		})
+	}
+	if err := deploymentCommitRelationRepository.Save(relations); err != nil {
+		return err
 	}
 
 	return nil
