@@ -3,11 +3,9 @@ package cmd
 import (
 	"fmt"
 	"github.com/myuon/probable-chainsaw/infra"
-	"github.com/myuon/probable-chainsaw/model"
 	"github.com/rs/zerolog/log"
 	"gorm.io/driver/sqlite"
 	"gorm.io/gorm"
-	"os"
 	"sort"
 	"time"
 )
@@ -24,11 +22,6 @@ func StartAndEndOfDay(t time.Time) (time.Time, time.Time) {
 	return start, end
 }
 
-type DailyDeployment struct {
-	Time  time.Time
-	Count int
-}
-
 func CmdReport(configFile string) error {
 	project, err := infra.LoadProject(configFile)
 	if err != nil {
@@ -40,21 +33,15 @@ func CmdReport(configFile string) error {
 		return err
 	}
 
-	markdown := `# Report for keys4
-`
+	reportGenerator := infra.ReportGenerator{Markdown: ""}
+
+	reportGenerator.Append(`# Report for keys4`)
+
+	dailyDeploymentsRepository := infra.DailyDeploymentCalculator{Db: db}
 
 	// Calculate deployment frequency and generate the table
-	type DailyDeployment struct {
-		Date  string
-		Count int
-	}
-
-	deployments := []DailyDeployment{}
-	if err := db.
-		Model(&model.Deployment{}).
-		Group("date(deployed_time)").
-		Select("date(deployed_time) as date, count(id) as count").
-		Find(&deployments).Error; err != nil {
+	deployments, err := dailyDeploymentsRepository.GetDailyDeployment()
+	if err != nil {
 		return err
 	}
 
@@ -75,10 +62,9 @@ func CmdReport(configFile string) error {
 
 	sort.Ints(deployCountMetrics)
 
-	markdown += fmt.Sprintf(`## Deployment frequency
-`)
+	reportGenerator.Append(`## Deployment frequency`)
 
-	markdown += `|Sun|Mon|Tue|Wed|Thu|Fri|Sat|SumOfWeekday|
+	markdown := `|Sun|Mon|Tue|Wed|Thu|Fri|Sat|SumOfWeekday|
 |---|---|---|---|---|---|---|---|`
 
 	current = StartOfMonth(today)
@@ -120,7 +106,9 @@ func CmdReport(configFile string) error {
 		}
 	}
 
-	if err := os.WriteFile("report.md", []byte(markdown), 0644); err != nil {
+	reportGenerator.Append(markdown)
+
+	if err := reportGenerator.WriteFile("report.md"); err != nil {
 		return err
 	}
 
