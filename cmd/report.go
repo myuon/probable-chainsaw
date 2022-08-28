@@ -26,7 +26,16 @@ func CmdReport(configFile string) error {
 
 	reportGenerator.Append(`# Report for keys4`)
 
+	deploymentRepository := infra.DeploymentRepository{Db: db}
+
+	deploymentCommitRelationRepository := infra.DeploymentCommitRelationRepository{Db: db}
+
 	dailyDeploymentsRepository := infra.DailyDeploymentCalculator{Db: db}
+
+	// Generate a report for this 30 days
+	dateCount := 30
+	startDate := time.Now().Add(-time.Duration(dateCount) * 24 * time.Hour)
+	endDate := time.Now()
 
 	// Calculate deployment frequency and generate the table
 	deployments, err := dailyDeploymentsRepository.GetDailyDeployment()
@@ -96,6 +105,28 @@ func CmdReport(configFile string) error {
 	}
 
 	reportGenerator.Append(markdown)
+
+	ds, err := deploymentRepository.FindByDeployedAt(startDate, endDate)
+	if err != nil {
+		return err
+	}
+
+	reportGenerator.Append(fmt.Sprintf(`## Deployments (%v)`, len(ds)))
+
+	for _, d := range ds {
+		commits, err := deploymentCommitRelationRepository.FindByDeploymentId(d.Id)
+		if err != nil {
+			return err
+		}
+
+		reportGenerator.BulletList([]string{fmt.Sprintf("%v (%v)", d.DeployedTime, d.CommitHash[0:6])}, 0)
+
+		commitHashes := []string{}
+		for _, c := range commits {
+			commitHashes = append(commitHashes, c.CommitHash)
+		}
+		reportGenerator.BulletList(commitHashes, 1)
+	}
 
 	if err := reportGenerator.WriteFile("report.md"); err != nil {
 		return err

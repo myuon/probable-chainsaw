@@ -26,6 +26,15 @@ func (r DeploymentCommitRelationRepository) ResetTable() error {
 	return nil
 }
 
+func (r DeploymentCommitRelationRepository) FindByDeploymentId(deploymentId model.DeploymentId) ([]DeploymentCommitRelation, error) {
+	rs := []DeploymentCommitRelation{}
+	if err := r.Db.Where("deployment_id = ?", deploymentId).Find(&rs).Error; err != nil {
+		return nil, err
+	}
+
+	return rs, nil
+}
+
 func (r DeploymentCommitRelationRepository) Create(relations []DeploymentCommitRelation) error {
 	if err := r.Db.Create(&relations).Error; err != nil {
 		return err

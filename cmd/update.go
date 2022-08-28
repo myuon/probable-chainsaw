@@ -30,6 +30,11 @@ func CmdUpdate(configFile string) error {
 		return err
 	}
 
+	deploymentRepository := infra.DeploymentRepository{Db: db}
+	if err := deploymentRepository.ResetTable(); err != nil {
+		return err
+	}
+
 	deploymentCommitRelationRepository := infra.DeploymentCommitRelationRepository{Db: db}
 	if err := deploymentCommitRelationRepository.ResetTable(); err != nil {
 		return err
@@ -55,7 +60,7 @@ func CmdUpdate(configFile string) error {
 				CommitHash:   c.Hash,
 			}
 
-			if err := db.Create(&deployment).Error; err != nil {
+			if err := deploymentRepository.Create(deployment); err != nil {
 				return err
 			}
 
