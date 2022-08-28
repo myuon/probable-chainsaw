@@ -14,6 +14,7 @@ import (
 type DeploymentCommitRelation struct {
 	DeploymentId model.DeploymentId `gorm:"primaryKey"`
 	CommitHash   string             `gorm:"primaryKey"`
+	LeadTime     int64
 }
 
 func CmdUpdate(configFile string) error {
@@ -83,6 +84,41 @@ func CmdUpdate(configFile string) error {
 
 		log.Info().Int(fmt.Sprintf("%v (%v)", date.Format("2006-01-02"), date.Weekday()), len(commits)).Msg("Deployment frequency")
 		date = date.Add(24 * time.Hour)
+	}
+
+	type Joined struct {
+		DeploymentId model.DeploymentId
+		CommitHash   string
+		DeployedAt   string
+		CommittedAt  int64
+	}
+
+	rs := []Joined{}
+
+	if err := db.
+		Model(&DeploymentCommitRelation{}).
+		Joins("INNER JOIN deployments ON deployments.id = deployment_commit_relations.deployment_id").
+		Joins("INNER JOIN commits ON deployment_commit_relations.commit_hash = commits.hash").
+		Select("deployments.id AS deployment_id, deployments.commit_hash, deployments.deployed_time AS deployed_at, commits.created_at AS committed_at").
+		Find(&rs).
+		Error; err != nil {
+		return err
+	}
+
+	for _, r := range rs {
+		deployedAt, err := time.Parse("2006-01-02 15:04:05", r.DeployedAt)
+		if err != nil {
+			return err
+		}
+		committedAt := r.CommittedAt
+
+		if err := db.Save(&DeploymentCommitRelation{
+			DeploymentId: r.DeploymentId,
+			CommitHash:   r.CommitHash,
+			LeadTime:     deployedAt.Unix() - committedAt,
+		}).Error; err != nil {
+			return err
+		}
 	}
 
 	return nil
