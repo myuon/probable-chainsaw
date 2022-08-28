@@ -3,24 +3,13 @@ package cmd
 import (
 	"fmt"
 	"github.com/myuon/probable-chainsaw/infra"
+	"github.com/myuon/probable-chainsaw/lib/date"
 	"github.com/rs/zerolog/log"
 	"gorm.io/driver/sqlite"
 	"gorm.io/gorm"
 	"sort"
 	"time"
 )
-
-func StartOfMonth(t time.Time) time.Time {
-	y, m, _ := t.Date()
-	return time.Date(y, m, 1, 0, 0, 0, 0, time.Local)
-}
-
-func StartAndEndOfDay(t time.Time) (time.Time, time.Time) {
-	y, m, d := t.Date()
-	start := time.Date(y, m, d, 0, 0, 0, 0, time.Local)
-	end := start.Add(24 * time.Hour)
-	return start, end
-}
 
 func CmdReport(configFile string) error {
 	project, err := infra.LoadProject(configFile)
@@ -53,7 +42,7 @@ func CmdReport(configFile string) error {
 	deployCountMetrics := []int{}
 
 	today := time.Now()
-	current := StartOfMonth(today)
+	current := date.StartOfMonth(today)
 	for current.Month() <= today.Month() {
 		count := deployMap[current.Format("2006-01")]
 		deployCountMetrics = append(deployCountMetrics, count)
@@ -67,7 +56,7 @@ func CmdReport(configFile string) error {
 	markdown := `|Sun|Mon|Tue|Wed|Thu|Fri|Sat|SumOfWeekday|
 |---|---|---|---|---|---|---|---|`
 
-	current = StartOfMonth(today)
+	current = date.StartOfMonth(today)
 	current = current.Add(-24 * time.Hour * time.Duration(current.Weekday()))
 	week := []int{}
 

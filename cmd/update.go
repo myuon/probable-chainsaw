@@ -3,6 +3,7 @@ package cmd
 import (
 	"fmt"
 	"github.com/myuon/probable-chainsaw/infra"
+	"github.com/myuon/probable-chainsaw/lib/date"
 	"github.com/myuon/probable-chainsaw/model"
 	"github.com/rs/zerolog/log"
 	"gorm.io/driver/sqlite"
@@ -38,10 +39,10 @@ func CmdUpdate(configFile string) error {
 	// update deployment table
 
 	dateCount := 30
-	date := time.Now().Add(-time.Duration(dateCount) * 24 * time.Hour)
+	d := time.Now().Add(-time.Duration(dateCount) * 24 * time.Hour)
 
 	for i := 0; i < dateCount; i++ {
-		start, end := StartAndEndOfDay(date)
+		start, end := date.StartAndEndOfDay(d)
 
 		commits := []model.Commit{}
 		if err := db.Where("created_at >= ? AND created_at < ? AND deploy_tag != ?", start.Unix(), end.Unix(), "").Find(&commits).Error; err != nil {
@@ -83,8 +84,8 @@ func CmdUpdate(configFile string) error {
 			log.Log().Msgf("%v", string(bin))
 		}
 
-		log.Info().Int(fmt.Sprintf("%v (%v)", date.Format("2006-01-02"), date.Weekday()), len(commits)).Msg("Deployment frequency")
-		date = date.Add(24 * time.Hour)
+		log.Info().Int(fmt.Sprintf("%v (%v)", d.Format("2006-01-02"), d.Weekday()), len(commits)).Msg("Deployment frequency")
+		d = d.Add(24 * time.Hour)
 	}
 
 	type Joined struct {
