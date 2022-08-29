@@ -9,10 +9,16 @@ import (
 	"os"
 )
 
+type ProjectRepository struct {
+	Org  string `json:"org"`
+	Name string `json:"name"`
+}
+
 type Project struct {
-	Path          string `json:"path"`
-	RepositoryUrl string `json:"repositoryUrl"`
-	SqliteFile    string `json:"sqliteFile"`
+	Path          string            `json:"path"`
+	RepositoryUrl string            `json:"repositoryUrl"`
+	SqliteFile    string            `json:"sqliteFile"`
+	Repository    ProjectRepository `json:"repository"`
 }
 
 func (r *Project) Setup() error {

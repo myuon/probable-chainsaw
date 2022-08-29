@@ -1,9 +1,9 @@
 package infra
 
 import (
-	"encoding/json"
 	"errors"
 	"fmt"
+	"github.com/goccy/go-yaml"
 	"github.com/myuon/probable-chainsaw/model"
 	"os"
 )
@@ -24,7 +24,7 @@ func LoadProject(configFilePath string) (model.Project, error) {
 	}
 
 	var project model.Project
-	if err := json.Unmarshal(bin, &project); err != nil {
+	if err := yaml.Unmarshal(bin, &project); err != nil {
 		return model.Project{}, err
 	}
 
@@ -32,7 +32,7 @@ func LoadProject(configFilePath string) (model.Project, error) {
 }
 
 func SaveProject(configFilePath string, project model.Project) error {
-	bin, err := json.Marshal(&project)
+	bin, err := yaml.Marshal(&project)
 	if err != nil {
 		return err
 	}

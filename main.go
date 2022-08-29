@@ -39,7 +39,7 @@ func initLogger() {
 func main() {
 	initLogger()
 
-	configFile := "keys4.config.json"
+	configFile := "keys4.config.yml"
 
 	root := &cobra.Command{Use: "keys4"}
 	root.AddCommand(&cobra.Command{
