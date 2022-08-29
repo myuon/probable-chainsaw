@@ -11,6 +11,18 @@ import (
 	"time"
 )
 
+func urlForCommit(org string, repositoryName string, commitHash string) string {
+	return fmt.Sprintf("https://github.com/%v/%v/commit/%v", org, repositoryName, commitHash)
+}
+
+func markdownLink(label string, url string) string {
+	return fmt.Sprintf("[%v](%v)", label, url)
+}
+
+func markdownCommitLink(org string, repositoryName string, commitHash string) string {
+	return markdownLink(commitHash[0:6], urlForCommit(org, repositoryName, commitHash))
+}
+
 func CmdReport(configFile string) error {
 	project, err := infra.LoadProject(configFile)
 	if err != nil {
@@ -60,7 +72,9 @@ func CmdReport(configFile string) error {
 
 	sort.Ints(deployCountMetrics)
 
-	reportGenerator.Append(`## Deployment frequency`)
+	reportGenerator.Append(fmt.Sprintf(`## Repository: %v/%v`, project.Repository.Org, project.Repository.Name))
+
+	reportGenerator.Append(`### Deployment frequency`)
 
 	markdown := `|Sun|Mon|Tue|Wed|Thu|Fri|Sat|SumOfWeekday|
 |---|---|---|---|---|---|---|---|`
@@ -111,7 +125,7 @@ func CmdReport(configFile string) error {
 		return err
 	}
 
-	reportGenerator.Append(fmt.Sprintf(`## Deployments (%v)`, len(ds)))
+	reportGenerator.Append(fmt.Sprintf(`### Deployments (%v)`, len(ds)))
 
 	for _, d := range ds {
 		commits, err := deploymentCommitRelationRepository.FindByDeploymentId(d.Id)
@@ -119,11 +133,16 @@ func CmdReport(configFile string) error {
 			return err
 		}
 
-		reportGenerator.BulletList([]string{fmt.Sprintf("%v (%v)", d.DeployedTime, d.CommitHash[0:6])}, 0)
+		reportGenerator.BulletList(
+			[]string{fmt.Sprintf(
+				"%v (%v)",
+				d.DeployedTime,
+				markdownCommitLink(project.Repository.Org, project.Repository.Name, d.CommitHash),
+			)}, 0)
 
 		commitHashes := []string{}
 		for _, c := range commits {
-			commitHashes = append(commitHashes, c.CommitHash)
+			commitHashes = append(commitHashes, markdownCommitLink(project.Repository.Org, project.Repository.Name, c.CommitHash))
 		}
 		reportGenerator.BulletList(commitHashes, 1)
 	}
