@@ -53,6 +53,7 @@ func (r CommitRepository) Save(commits object.CommitIter) error {
 func (r CommitRepository) UpdateDeployTags(workingBranch string, commits object.CommitIter) error {
 	if err := commits.ForEach(func(c *object.Commit) error {
 		// check if this is a merge commit from "master" branch
+		// FIXME: filter only `Merge pull request #XXX from NAME/BRANCH` ones
 		if !(strings.Contains(c.Message, "Merge pull request") && strings.Contains(c.Message, workingBranch)) {
 			return nil
 		}
@@ -73,7 +74,7 @@ func (r CommitRepository) UpdateDeployTags(workingBranch string, commits object.
 		}
 
 		t.DeployTag = c.Hash.String()
-		if err := r.Db.Save(&r).Error; err != nil {
+		if err := r.Db.Save(&t).Error; err != nil {
 			return errors.WithStack(err)
 		}
 

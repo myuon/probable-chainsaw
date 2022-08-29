@@ -1,4 +1,4 @@
 data/
 *.db
 keys4.config.json
-.report.md
+report.md

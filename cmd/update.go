@@ -23,12 +23,6 @@ func CmdUpdate(configFile string) error {
 	if err != nil {
 		return err
 	}
-	if err := db.Migrator().DropTable(&model.Deployment{}); err != nil {
-		return err
-	}
-	if err := db.AutoMigrate(&model.Deployment{}); err != nil {
-		return err
-	}
 
 	deploymentRepository := infra.DeploymentRepository{Db: db}
 	if err := deploymentRepository.ResetTable(); err != nil {
@@ -57,7 +51,7 @@ func CmdUpdate(configFile string) error {
 			deployment := model.Deployment{
 				Id:           model.NewDeploymentId(),
 				DeployedTime: time.Unix(c.CreatedAt, 0).Format("2006-01-02 15:04:05"),
-				CommitHash:   c.Hash,
+				CommitHash:   c.DeployTag,
 			}
 
 			if err := deploymentRepository.Create(deployment); err != nil {
@@ -85,7 +79,7 @@ func CmdUpdate(configFile string) error {
 				return err
 			}
 
-			log.Log().Msgf("%v", string(bin))
+			log.Info().Msgf("%v", string(bin))
 		}
 
 		log.Info().Int(fmt.Sprintf("%v (%v)", d.Format("2006-01-02"), d.Weekday()), len(commits)).Msg("Deployment frequency")
