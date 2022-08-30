@@ -9,7 +9,8 @@ type Commit struct {
 }
 
 type DeployCommit struct {
-	Hash       string `gorm:"primaryKey"`
-	AuthorName string
-	DeployedAt int64
+	Hash         string `gorm:"primaryKey"`
+	AuthorName   string
+	DeployedAt   int64
+	PreviousHash string
 }

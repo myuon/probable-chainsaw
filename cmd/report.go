@@ -38,11 +38,11 @@ func CmdReport(configFile string) error {
 
 	reportGenerator.Append(`# Report for keys4`)
 
-	deploymentRepository := infra.DeploymentRepository{Db: db}
-
-	deploymentCommitRelationRepository := infra.DeploymentCommitRelationRepository{Db: db}
+	deployCommitRelationRepository := infra.DeployCommitRelationRepository{Db: db}
 
 	dailyDeploymentsRepository := infra.DailyDeploymentCalculator{Db: db}
+
+	deployCommitRepository := infra.DeployCommitRepository{Db: db}
 
 	// Generate a report for this 30 days
 	dateCount := 30
@@ -120,7 +120,7 @@ func CmdReport(configFile string) error {
 
 	reportGenerator.Append(markdown)
 
-	ds, err := deploymentRepository.FindByDeployedAt(startDate, endDate)
+	ds, err := deployCommitRepository.FindBetweenDeployedAt(startDate.Unix(), endDate.Unix())
 	if err != nil {
 		return err
 	}
@@ -128,7 +128,7 @@ func CmdReport(configFile string) error {
 	reportGenerator.Append(fmt.Sprintf(`### Deployments (%v)`, len(ds)))
 
 	for _, d := range ds {
-		commits, err := deploymentCommitRelationRepository.FindByDeploymentId(d.Id)
+		commits, err := deployCommitRelationRepository.FindByDeployHash(d.Hash)
 		if err != nil {
 			return err
 		}
@@ -136,8 +136,8 @@ func CmdReport(configFile string) error {
 		reportGenerator.BulletList(
 			[]string{fmt.Sprintf(
 				"%v (%v)",
-				d.DeployedTime,
-				markdownCommitLink(project.Repository.Org, project.Repository.Name, d.CommitHash),
+				time.Unix(d.DeployedAt, 0).Format("2006-01-02 15:04:05"),
+				markdownCommitLink(project.Repository.Org, project.Repository.Name, d.Hash),
 			)}, 0)
 
 		commitHashes := []string{}

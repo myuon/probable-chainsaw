@@ -24,12 +24,9 @@ func CmdUpdate(configFile string) error {
 		return err
 	}
 
-	deploymentRepository := infra.DeploymentRepository{Db: db}
-	if err := deploymentRepository.ResetTable(); err != nil {
-		return err
-	}
+	deploymentCommitRepository := infra.DeployCommitRepository{Db: db}
 
-	deploymentCommitRelationRepository := infra.DeploymentCommitRelationRepository{Db: db}
+	deploymentCommitRelationRepository := infra.DeployCommitRelationRepository{Db: db}
 	if err := deploymentCommitRelationRepository.ResetTable(); err != nil {
 		return err
 	}
@@ -42,36 +39,26 @@ func CmdUpdate(configFile string) error {
 	for i := 0; i < dateCount; i++ {
 		start, end := date.StartAndEndOfDay(d)
 
-		commits := []model.Commit{}
-		if err := db.Where("created_at >= ? AND created_at < ? AND deploy_tag != ?", start.Unix(), end.Unix(), "").Find(&commits).Error; err != nil {
+		deploys, err := deploymentCommitRepository.FindBetweenDeployedAt(start.Unix(), end.Unix())
+		if err != nil {
 			return err
 		}
 
-		for _, c := range commits {
-			deployment := model.Deployment{
-				Id:           model.NewDeploymentId(),
-				DeployedTime: time.Unix(c.CreatedAt, 0).Format("2006-01-02 15:04:05"),
-				CommitHash:   c.DeployTag,
-			}
-
-			if err := deploymentRepository.Create(deployment); err != nil {
-				return err
-			}
-
-			bin, err := exec.Command("git", "-C", project.Path, "log", "--pretty=format:%H", fmt.Sprintf("%v..%v", c.Parent, c.Hash)).Output()
+		for _, d := range deploys {
+			bin, err := exec.Command("git", "-C", project.Path, "log", "--pretty=format:%H", fmt.Sprintf("%v..%v", d.PreviousHash, d.Hash)).Output()
 			if err != nil {
 				return err
 			}
 
-			relations := []infra.DeploymentCommitRelation{}
+			relations := []infra.DeployCommitRelation{}
 			for _, hash := range strings.Split(string(bin), "\n") {
 				if hash == "" {
 					continue
 				}
 
-				relations = append(relations, infra.DeploymentCommitRelation{
-					DeploymentId: deployment.Id,
-					CommitHash:   hash,
+				relations = append(relations, infra.DeployCommitRelation{
+					DeployHash: d.Hash,
+					CommitHash: hash,
 				})
 			}
 
@@ -82,7 +69,7 @@ func CmdUpdate(configFile string) error {
 			log.Info().Msgf("%v", string(bin))
 		}
 
-		log.Info().Int(fmt.Sprintf("%v (%v)", d.Format("2006-01-02"), d.Weekday()), len(commits)).Msg("Deployment frequency")
+		log.Info().Int(fmt.Sprintf("%v (%v)", d.Format("2006-01-02"), d.Weekday()), len(deploys)).Msg("Deployment frequency")
 		d = d.Add(24 * time.Hour)
 	}
 
@@ -93,35 +80,35 @@ func CmdUpdate(configFile string) error {
 		CommittedAt  int64
 	}
 
-	rs := []Joined{}
-
-	if err := db.
-		Model(&infra.DeploymentCommitRelation{}).
-		Joins("INNER JOIN deployments ON deployments.id = deployment_commit_relations.deployment_id").
-		Joins("INNER JOIN commits ON deployment_commit_relations.commit_hash = commits.hash").
-		Select("deployments.id AS deployment_id, deployments.commit_hash, deployments.deployed_time AS deployed_at, commits.created_at AS committed_at").
-		Find(&rs).
-		Error; err != nil {
-		return err
-	}
-
-	relations := []infra.DeploymentCommitRelation{}
-	for _, r := range rs {
-		deployedAt, err := time.Parse("2006-01-02 15:04:05", r.DeployedAt)
-		if err != nil {
+	/*
+		if err := db.
+			Model(&infra.DeployCommitRelation{}).
+			Joins("INNER JOIN deployments ON deployments.id = deploy_commit_relations.deploy_hash").
+			Joins("INNER JOIN commits ON deploy_commit_relations.commit_hash = commits.hash").
+			Select("deployments.id AS deployment_id, deployments.commit_hash, deployments.deployed_time AS deployed_at, commits.created_at AS committed_at").
+			Find(&rs).
+			Error; err != nil {
 			return err
 		}
-		committedAt := r.CommittedAt
 
-		relations = append(relations, infra.DeploymentCommitRelation{
-			DeploymentId: r.DeploymentId,
-			CommitHash:   r.CommitHash,
-			LeadTime:     deployedAt.Unix() - committedAt,
-		})
-	}
-	if err := deploymentCommitRelationRepository.Save(relations); err != nil {
-		return err
-	}
+		relations := []infra.DeployCommitRelation{}
+		for _, r := range rs {
+			deployedAt, err := time.Parse("2006-01-02 15:04:05", r.DeployedAt)
+			if err != nil {
+				return err
+			}
+			committedAt := r.CommittedAt
+			_ = deployedAt.Unix() - committedAt
+
+			relations = append(relations, infra.DeployCommitRelation{
+				DeployHash: r.CommitHash,
+				CommitHash: r.CommitHash,
+			})
+		}
+		if err := deploymentCommitRelationRepository.Save(relations); err != nil {
+			return err
+		}
+	*/
 
 	return nil
 }

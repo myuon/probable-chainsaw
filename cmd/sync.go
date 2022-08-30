@@ -86,10 +86,20 @@ func CmdSync(configPath string) error {
 			return nil
 		}
 
+		previous := ""
+		if c.NumParents() > 0 {
+			parent, err := c.Parent(0)
+			if err != nil {
+				return err
+			}
+			previous = parent.Hash.String()
+		}
+
 		deployCommits = append(deployCommits, model.DeployCommit{
-			Hash:       c.Hash.String(),
-			AuthorName: c.Author.Name,
-			DeployedAt: c.Author.When.Unix(),
+			Hash:         c.Hash.String(),
+			AuthorName:   c.Author.Name,
+			DeployedAt:   c.Author.When.Unix(),
+			PreviousHash: previous,
 		})
 
 		return nil
