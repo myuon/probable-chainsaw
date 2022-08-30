@@ -2,12 +2,15 @@ package cmd
 
 import (
 	"fmt"
+	"github.com/go-git/go-git/v5/plumbing/object"
 	"github.com/go-git/go-git/v5/plumbing/transport/ssh"
 	"github.com/myuon/probable-chainsaw/infra"
+	"github.com/myuon/probable-chainsaw/model"
 	"github.com/rs/zerolog/log"
 	"gorm.io/driver/sqlite"
 	"gorm.io/gorm"
 	"os"
+	"strings"
 )
 
 // See also: https://github.com/go-git/go-git/issues/411
@@ -39,12 +42,14 @@ func CmdSync(configPath string) error {
 		return err
 	}
 
-	commitRepository := infra.CommitRepository{
-		Db: db,
-	}
+	commitRepository := infra.CommitRepository{Db: db}
+	deployCommitRepository := infra.DeployCommitRepository{Db: db}
 
 	// clear all
 	if err := commitRepository.ResetTable(); err != nil {
+		return err
+	}
+	if err := deployCommitRepository.ResetTable(); err != nil {
 		return err
 	}
 
@@ -70,6 +75,29 @@ func CmdSync(configPath string) error {
 	// find deployed commits from "deploy" branch
 	commits, err = project.FetchCommitsFromBranch("origin/deploy", repo)
 	if err != nil {
+		return err
+	}
+
+	deployCommits := []model.DeployCommit{}
+	if err := commits.ForEach(func(c *object.Commit) error {
+		// check if this is a merge commit from "master" branch
+		// FIXME: filter only `Merge pull request #XXX from NAME/BRANCH` ones
+		if !(strings.Contains(c.Message, "Merge pull request") && strings.Contains(c.Message, "master")) {
+			return nil
+		}
+
+		deployCommits = append(deployCommits, model.DeployCommit{
+			Hash:       c.Hash.String(),
+			AuthorName: c.Author.Name,
+			DeployedAt: c.Author.When.Unix(),
+		})
+
+		return nil
+	}); err != nil {
+		return err
+	}
+
+	if err := deployCommitRepository.Create(deployCommits); err != nil {
 		return err
 	}
 

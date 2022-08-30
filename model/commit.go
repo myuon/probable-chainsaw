@@ -7,3 +7,9 @@ type Commit struct {
 	DeployTag  string
 	Parent     string
 }
+
+type DeployCommit struct {
+	Hash       string `gorm:"primaryKey"`
+	AuthorName string
+	DeployedAt int64
+}
