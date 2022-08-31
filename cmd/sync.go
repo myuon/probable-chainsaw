@@ -6,7 +6,6 @@ import (
 	"github.com/go-git/go-git/v5/plumbing/transport/ssh"
 	"github.com/myuon/probable-chainsaw/infra"
 	"github.com/myuon/probable-chainsaw/model"
-	"github.com/rs/zerolog/log"
 	"gorm.io/driver/sqlite"
 	"gorm.io/gorm"
 	"os"
@@ -29,14 +28,6 @@ func CmdSync(configPath string) error {
 		return err
 	}
 
-	// clone
-	if err := project.Setup(); err != nil {
-		return err
-	}
-	defer infra.SaveProject(configPath, project)
-
-	log.Info().Str("path", project.Path).Msg("Setup")
-
 	db, err := gorm.Open(sqlite.Open(project.SqliteFile), &gorm.Config{})
 	if err != nil {
 		return err
@@ -57,6 +48,8 @@ func CmdSync(configPath string) error {
 	if err != nil {
 		return err
 	}
+
+	// clone a repository
 	repo, err := project.Clone(sshAuth)
 	if err != nil {
 		return err

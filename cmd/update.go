@@ -45,7 +45,7 @@ func CmdUpdate(configFile string) error {
 		}
 
 		for _, d := range deploys {
-			bin, err := exec.Command("git", "-C", project.Path, "log", "--pretty=format:%H", fmt.Sprintf("%v..%v", d.PreviousHash, d.Hash)).Output()
+			bin, err := exec.Command("git", "-C", project.WorkPath(), "log", "--pretty=format:%H", fmt.Sprintf("%v..%v", d.PreviousHash, d.Hash)).Output()
 			if err != nil {
 				return err
 			}

@@ -1,6 +1,7 @@
 package model
 
 import (
+	"fmt"
 	"github.com/go-git/go-git/v5"
 	"github.com/go-git/go-git/v5/plumbing"
 	"github.com/go-git/go-git/v5/plumbing/object"
@@ -15,34 +16,17 @@ type ProjectRepository struct {
 }
 
 type Project struct {
-	Path          string            `json:"path"`
 	RepositoryUrl string            `json:"repositoryUrl"`
 	SqliteFile    string            `json:"sqliteFile"`
 	Repository    ProjectRepository `json:"repository"`
 }
 
-func (r *Project) Setup() error {
-	dir, err := os.MkdirTemp("", "repository")
-	if err != nil {
-		return err
-	}
-
-	r.Path = dir
-
-	return nil
-}
-
-func (r *Project) CleanUp() error {
-	if err := os.RemoveAll(r.Path); err != nil {
-		return err
-	}
-	r.Path = ""
-
-	return nil
+func (r Project) WorkPath() string {
+	return fmt.Sprintf(".work/%v_%v", r.Repository.Org, r.Repository.Name)
 }
 
 func (r Project) Clone(auth transport.AuthMethod) (*git.Repository, error) {
-	repo, err := git.PlainClone(r.Path, false, &git.CloneOptions{
+	repo, err := git.PlainClone(r.WorkPath(), false, &git.CloneOptions{
 		URL:      r.RepositoryUrl,
 		Progress: os.Stdout,
 		Auth:     auth,

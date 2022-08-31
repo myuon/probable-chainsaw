@@ -2,3 +2,5 @@ data/
 *.db
 keys4.config.*
 report.md
+.work/
+
