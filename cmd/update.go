@@ -2,6 +2,7 @@ package cmd
 
 import (
 	"fmt"
+	"github.com/go-git/go-git/v5/plumbing/object"
 	"github.com/myuon/probable-chainsaw/infra"
 	"github.com/myuon/probable-chainsaw/lib/date"
 	"github.com/myuon/probable-chainsaw/model"
@@ -13,21 +14,118 @@ import (
 	"time"
 )
 
+type UpdateService struct {
+	commitRepository               infra.CommitRepository
+	deployCommitRepository         infra.DeployCommitRepository
+	deployCommitRelationRepository infra.DeployCommitRelationRepository
+}
+
+func newService(project model.Project) (UpdateService, error) {
+	db, err := gorm.Open(sqlite.Open(project.SqliteFile), &gorm.Config{})
+	if err != nil {
+		return UpdateService{}, err
+	}
+
+	commitRepository := infra.CommitRepository{Db: db}
+	deployCommitRepository := infra.DeployCommitRepository{Db: db}
+	deployCommitRelationRepository := infra.DeployCommitRelationRepository{Db: db}
+
+	return UpdateService{
+		commitRepository:               commitRepository,
+		deployCommitRepository:         deployCommitRepository,
+		deployCommitRelationRepository: deployCommitRelationRepository,
+	}, nil
+}
+
+func (service UpdateService) UpdateRepositoryCommits(p model.ProjectRepository) error {
+	repo, err := infra.GitOperatorCloneOrPull(p.WorkPath(), fmt.Sprintf("git@github.com:%v/%v.git", p.Org, p.Name))
+	if err != nil {
+		return err
+	}
+
+	// save commits from HEAD
+	commits, err := repo.GetCommitsFromHEAD()
+	if err != nil {
+		return err
+	}
+
+	if err := service.commitRepository.Save(commits); err != nil {
+		return err
+	}
+
+	// find deployed commits from "deploy" branch
+	commits, err = repo.GetCommitsInBranch("origin/deploy")
+	if err != nil {
+		return err
+	}
+
+	deployCommits := []model.DeployCommit{}
+	if err := commits.ForEach(func(c *object.Commit) error {
+		// check if this is a merge commit from "master" branch
+		// FIXME: filter only `Merge pull request #XXX from NAME/BRANCH` ones
+		if !(strings.Contains(c.Message, "Merge pull request") && strings.Contains(c.Message, "master")) {
+			return nil
+		}
+
+		previous := ""
+		if c.NumParents() > 0 {
+			parent, err := c.Parent(0)
+			if err != nil {
+				return err
+			}
+			previous = parent.Hash.String()
+		}
+
+		deployCommits = append(deployCommits, model.DeployCommit{
+			Hash:         c.Hash.String(),
+			AuthorName:   c.Author.Name,
+			DeployedAt:   c.Author.When.Unix(),
+			PreviousHash: previous,
+		})
+
+		return nil
+	}); err != nil {
+		return err
+	}
+
+	if err := service.deployCommitRepository.Create(deployCommits); err != nil {
+		return err
+	}
+
+	if err := service.commitRepository.UpdateDeployTags("master", commits); err != nil {
+		return err
+	}
+
+	return nil
+}
+
 func CmdUpdate(configFile string) error {
 	project, err := infra.LoadProject(configFile)
 	if err != nil {
 		return err
 	}
 
-	db, err := gorm.Open(sqlite.Open(project.SqliteFile), &gorm.Config{})
+	service, err := newService(project)
 	if err != nil {
 		return err
 	}
 
-	deploymentCommitRepository := infra.DeployCommitRepository{Db: db}
+	// clear all
+	if err := service.commitRepository.ResetTable(); err != nil {
+		return err
+	}
+	if err := service.deployCommitRepository.ResetTable(); err != nil {
+		return err
+	}
 
-	deploymentCommitRelationRepository := infra.DeployCommitRelationRepository{Db: db}
-	if err := deploymentCommitRelationRepository.ResetTable(); err != nil {
+	for _, p := range project.Repository {
+		if err := service.UpdateRepositoryCommits(p); err != nil {
+			return err
+		}
+	}
+
+	// update relations
+	if err := service.deployCommitRelationRepository.ResetTable(); err != nil {
 		return err
 	}
 
@@ -40,7 +138,7 @@ func CmdUpdate(configFile string) error {
 		for i := 0; i < dateCount; i++ {
 			start, end := date.StartAndEndOfDay(d)
 
-			deploys, err := deploymentCommitRepository.FindBetweenDeployedAt(start.Unix(), end.Unix())
+			deploys, err := service.deployCommitRepository.FindBetweenDeployedAt(start.Unix(), end.Unix())
 			if err != nil {
 				return err
 			}
@@ -63,7 +161,7 @@ func CmdUpdate(configFile string) error {
 					})
 				}
 
-				if err := deploymentCommitRelationRepository.Create(relations); err != nil {
+				if err := service.deployCommitRelationRepository.Create(relations); err != nil {
 					return err
 				}
 

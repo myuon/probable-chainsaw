@@ -58,16 +58,6 @@ func main() {
 		},
 	})
 	root.AddCommand(&cobra.Command{
-		Use:   "sync",
-		Short: "Synchronize the project",
-		Run: func(command *cobra.Command, args []string) {
-			if err := cmd.CmdSync(configFile); err != nil {
-				log.Error().Stack().Err(err).Msg("Failed to synchronize the project")
-				return
-			}
-		},
-	})
-	root.AddCommand(&cobra.Command{
 		Use:   "update",
 		Short: "Update the data and statistics",
 		Run: func(command *cobra.Command, args []string) {

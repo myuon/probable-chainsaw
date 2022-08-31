@@ -7,6 +7,7 @@ import (
 	"github.com/go-git/go-git/v5/plumbing/object"
 	"github.com/go-git/go-git/v5/plumbing/transport/ssh"
 	"github.com/pkg/errors"
+	"github.com/rs/zerolog/log"
 	"os"
 )
 
@@ -55,9 +56,13 @@ func GitOperatorOpen(path string) (GitOperator, error) {
 func GitOperatorCloneOrPull(path string, url string) (GitOperator, error) {
 	_, err := os.Stat(path)
 	if os.IsNotExist(err) {
+		log.Info().Msgf("Repository not exist, cloning %v", url)
+
 		// Create if repository not exist
 		return GitOperatorClone(path, url)
 	} else {
+		log.Info().Msgf("Repository exists, update %v", url)
+
 		// Pull if repository exist
 		op, err := GitOperatorOpen(path)
 		if err != nil {
