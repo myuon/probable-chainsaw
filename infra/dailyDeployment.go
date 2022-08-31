@@ -18,9 +18,9 @@ func (r DailyDeploymentCalculator) GetDailyDeployment() ([]DailyDeployment, erro
 	deployments := []DailyDeployment{}
 
 	if err := r.Db.
-		Model(&model.Deployment{}).
-		Group("date(deployed_time)").
-		Select("date(deployed_time) as date, count(id) as count").
+		Model(&model.DeployCommit{}).
+		Group("date(deployed_at, 'unixepoch')").
+		Select("date(deployed_at, 'unixepoch') as date, count(hash) as count").
 		Find(&deployments).Error; err != nil {
 		return nil, err
 	}
