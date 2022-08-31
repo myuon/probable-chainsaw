@@ -2,26 +2,13 @@ package cmd
 
 import (
 	"fmt"
-	"github.com/go-git/go-git/v5"
 	"github.com/go-git/go-git/v5/plumbing/object"
-	"github.com/go-git/go-git/v5/plumbing/transport/ssh"
 	"github.com/myuon/probable-chainsaw/infra"
 	"github.com/myuon/probable-chainsaw/model"
 	"gorm.io/driver/sqlite"
 	"gorm.io/gorm"
-	"os"
 	"strings"
 )
-
-// See also: https://github.com/go-git/go-git/issues/411
-func SshAuth() (*ssh.PublicKeys, error) {
-	publicKey, err := ssh.NewPublicKeysFromFile("git", fmt.Sprintf("%v/.ssh/id_rsa", os.Getenv("HOME")), "")
-	if err != nil {
-		return nil, err
-	}
-
-	return publicKey, nil
-}
 
 func CmdSync(configPath string) error {
 	project, err := infra.LoadProject(configPath)
@@ -45,38 +32,15 @@ func CmdSync(configPath string) error {
 		return err
 	}
 
-	sshAuth, err := SshAuth()
-	if err != nil {
-		return err
-	}
-
 	// clone repositories
 	for _, p := range project.Repository {
-		var repo *git.Repository
-
-		_, err := os.Stat(p.WorkPath())
-		if os.IsNotExist(err) {
-			repo, err = p.Clone(sshAuth)
-			if err != nil {
-				return err
-			}
-		} else {
-			repo, err = git.PlainOpen(p.WorkPath())
-			if err != nil {
-				return err
-			}
-
-			if err := repo.Fetch(&git.FetchOptions{
-				Force: true,
-			}); err != nil {
-				if err != git.NoErrAlreadyUpToDate {
-					return err
-				}
-			}
+		repo, err := infra.GitOperatorCloneOrPull(p.WorkPath(), fmt.Sprintf("git@github.com:%v/%v.git", p.Org, p.Name))
+		if err != nil {
+			return err
 		}
 
 		// save commits from HEAD
-		commits, err := project.FetchCommits(repo)
+		commits, err := repo.GetCommitsFromHEAD()
 		if err != nil {
 			return err
 		}
@@ -86,7 +50,7 @@ func CmdSync(configPath string) error {
 		}
 
 		// find deployed commits from "deploy" branch
-		commits, err = project.FetchCommitsFromBranch("origin/deploy", repo)
+		commits, err = repo.GetCommitsInBranch("origin/deploy")
 		if err != nil {
 			return err
 		}
