@@ -2,6 +2,7 @@ package cmd
 
 import (
 	"fmt"
+	"github.com/go-git/go-git/v5"
 	"github.com/go-git/go-git/v5/plumbing/object"
 	"github.com/go-git/go-git/v5/plumbing/transport/ssh"
 	"github.com/myuon/probable-chainsaw/infra"
@@ -49,63 +50,83 @@ func CmdSync(configPath string) error {
 		return err
 	}
 
-	// clone a repository
-	repo, err := project.Clone(sshAuth)
-	if err != nil {
-		return err
-	}
+	// clone repositories
+	for _, p := range project.Repository {
+		var repo *git.Repository
 
-	// save commits from HEAD
-	commits, err := project.FetchCommits(repo)
-	if err != nil {
-		return err
-	}
-
-	if err := commitRepository.Save(commits); err != nil {
-		return err
-	}
-
-	// find deployed commits from "deploy" branch
-	commits, err = project.FetchCommitsFromBranch("origin/deploy", repo)
-	if err != nil {
-		return err
-	}
-
-	deployCommits := []model.DeployCommit{}
-	if err := commits.ForEach(func(c *object.Commit) error {
-		// check if this is a merge commit from "master" branch
-		// FIXME: filter only `Merge pull request #XXX from NAME/BRANCH` ones
-		if !(strings.Contains(c.Message, "Merge pull request") && strings.Contains(c.Message, "master")) {
-			return nil
-		}
-
-		previous := ""
-		if c.NumParents() > 0 {
-			parent, err := c.Parent(0)
+		_, err := os.Stat(p.WorkPath())
+		if os.IsNotExist(err) {
+			repo, err = p.Clone(sshAuth)
 			if err != nil {
 				return err
 			}
-			previous = parent.Hash.String()
+		} else {
+			repo, err = git.PlainOpen(p.WorkPath())
+			if err != nil {
+				return err
+			}
+
+			if err := repo.Fetch(&git.FetchOptions{
+				Force: true,
+			}); err != nil {
+				if err != git.NoErrAlreadyUpToDate {
+					return err
+				}
+			}
 		}
 
-		deployCommits = append(deployCommits, model.DeployCommit{
-			Hash:         c.Hash.String(),
-			AuthorName:   c.Author.Name,
-			DeployedAt:   c.Author.When.Unix(),
-			PreviousHash: previous,
-		})
+		// save commits from HEAD
+		commits, err := project.FetchCommits(repo)
+		if err != nil {
+			return err
+		}
 
-		return nil
-	}); err != nil {
-		return err
-	}
+		if err := commitRepository.Save(commits); err != nil {
+			return err
+		}
 
-	if err := deployCommitRepository.Create(deployCommits); err != nil {
-		return err
-	}
+		// find deployed commits from "deploy" branch
+		commits, err = project.FetchCommitsFromBranch("origin/deploy", repo)
+		if err != nil {
+			return err
+		}
 
-	if err := commitRepository.UpdateDeployTags("master", commits); err != nil {
-		return err
+		deployCommits := []model.DeployCommit{}
+		if err := commits.ForEach(func(c *object.Commit) error {
+			// check if this is a merge commit from "master" branch
+			// FIXME: filter only `Merge pull request #XXX from NAME/BRANCH` ones
+			if !(strings.Contains(c.Message, "Merge pull request") && strings.Contains(c.Message, "master")) {
+				return nil
+			}
+
+			previous := ""
+			if c.NumParents() > 0 {
+				parent, err := c.Parent(0)
+				if err != nil {
+					return err
+				}
+				previous = parent.Hash.String()
+			}
+
+			deployCommits = append(deployCommits, model.DeployCommit{
+				Hash:         c.Hash.String(),
+				AuthorName:   c.Author.Name,
+				DeployedAt:   c.Author.When.Unix(),
+				PreviousHash: previous,
+			})
+
+			return nil
+		}); err != nil {
+			return err
+		}
+
+		if err := deployCommitRepository.Create(deployCommits); err != nil {
+			return err
+		}
+
+		if err := commitRepository.UpdateDeployTags("master", commits); err != nil {
+			return err
+		}
 	}
 
 	return nil

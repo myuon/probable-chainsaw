@@ -15,19 +15,13 @@ type ProjectRepository struct {
 	Name string `json:"name"`
 }
 
-type Project struct {
-	RepositoryUrl string            `json:"repositoryUrl"`
-	SqliteFile    string            `json:"sqliteFile"`
-	Repository    ProjectRepository `json:"repository"`
+func (r ProjectRepository) WorkPath() string {
+	return fmt.Sprintf(".work/%v_%v", r.Org, r.Name)
 }
 
-func (r Project) WorkPath() string {
-	return fmt.Sprintf(".work/%v_%v", r.Repository.Org, r.Repository.Name)
-}
-
-func (r Project) Clone(auth transport.AuthMethod) (*git.Repository, error) {
+func (r ProjectRepository) Clone(auth transport.AuthMethod) (*git.Repository, error) {
 	repo, err := git.PlainClone(r.WorkPath(), false, &git.CloneOptions{
-		URL:      r.RepositoryUrl,
+		URL:      fmt.Sprintf("git@github.com:%v/%v.git", r.Org, r.Name),
 		Progress: os.Stdout,
 		Auth:     auth,
 	})
@@ -36,6 +30,12 @@ func (r Project) Clone(auth transport.AuthMethod) (*git.Repository, error) {
 	}
 
 	return repo, nil
+}
+
+type Project struct {
+	RepositoryUrl string              `json:"repositoryUrl"`
+	SqliteFile    string              `json:"sqliteFile"`
+	Repository    []ProjectRepository `json:"repository"`
 }
 
 func (r Project) FetchCommits(repo *git.Repository) (object.CommitIter, error) {

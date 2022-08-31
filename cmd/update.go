@@ -32,45 +32,47 @@ func CmdUpdate(configFile string) error {
 	}
 
 	// update deployment table
+	for _, p := range project.Repository {
 
-	dateCount := 30
-	d := time.Now().Add(-time.Duration(dateCount) * 24 * time.Hour)
+		dateCount := 30
+		d := time.Now().Add(-time.Duration(dateCount) * 24 * time.Hour)
 
-	for i := 0; i < dateCount; i++ {
-		start, end := date.StartAndEndOfDay(d)
+		for i := 0; i < dateCount; i++ {
+			start, end := date.StartAndEndOfDay(d)
 
-		deploys, err := deploymentCommitRepository.FindBetweenDeployedAt(start.Unix(), end.Unix())
-		if err != nil {
-			return err
-		}
-
-		for _, d := range deploys {
-			bin, err := exec.Command("git", "-C", project.WorkPath(), "log", "--pretty=format:%H", fmt.Sprintf("%v..%v", d.PreviousHash, d.Hash)).Output()
+			deploys, err := deploymentCommitRepository.FindBetweenDeployedAt(start.Unix(), end.Unix())
 			if err != nil {
 				return err
 			}
 
-			relations := []infra.DeployCommitRelation{}
-			for _, hash := range strings.Split(string(bin), "\n") {
-				if hash == "" {
-					continue
+			for _, d := range deploys {
+				bin, err := exec.Command("git", "-C", p.WorkPath(), "log", "--pretty=format:%H", fmt.Sprintf("%v..%v", d.PreviousHash, d.Hash)).Output()
+				if err != nil {
+					return err
 				}
 
-				relations = append(relations, infra.DeployCommitRelation{
-					DeployHash: d.Hash,
-					CommitHash: hash,
-				})
+				relations := []infra.DeployCommitRelation{}
+				for _, hash := range strings.Split(string(bin), "\n") {
+					if hash == "" {
+						continue
+					}
+
+					relations = append(relations, infra.DeployCommitRelation{
+						DeployHash: d.Hash,
+						CommitHash: hash,
+					})
+				}
+
+				if err := deploymentCommitRelationRepository.Create(relations); err != nil {
+					return err
+				}
+
+				log.Info().Msgf("%v", string(bin))
 			}
 
-			if err := deploymentCommitRelationRepository.Create(relations); err != nil {
-				return err
-			}
-
-			log.Info().Msgf("%v", string(bin))
+			log.Info().Int(fmt.Sprintf("%v (%v)", d.Format("2006-01-02"), d.Weekday()), len(deploys)).Msg("Deployment frequency")
+			d = d.Add(24 * time.Hour)
 		}
-
-		log.Info().Int(fmt.Sprintf("%v (%v)", d.Format("2006-01-02"), d.Weekday()), len(deploys)).Msg("Deployment frequency")
-		d = d.Add(24 * time.Hour)
 	}
 
 	type Joined struct {
