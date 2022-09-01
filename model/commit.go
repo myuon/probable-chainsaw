@@ -15,4 +15,15 @@ type DeployCommit struct {
 	DeployedAt     int64
 	PreviousHash   string
 	RepositoryName string
+	LeadTime       int
+}
+
+type DeployCommits []DeployCommit
+
+func (ds DeployCommits) Hashes() []string {
+	hashes := []string{}
+	for _, d := range ds {
+		hashes = append(hashes, d.Hash)
+	}
+	return hashes
 }

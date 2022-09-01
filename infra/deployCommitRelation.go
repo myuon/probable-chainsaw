@@ -49,3 +49,25 @@ func (r DeployCommitRelationRepository) Save(relations []DeployCommitRelation) e
 
 	return nil
 }
+
+type DeployLeadTime struct {
+	DeployHash string
+	LeadTime   int
+}
+
+func (r DeployCommitRelationRepository) GetLeadTimeForDeploys(deployCommitHashes []string) ([]DeployLeadTime, error) {
+	ms := []DeployLeadTime{}
+
+	if err := r.Db.
+		Model(&DeployCommitRelation{}).
+		Joins("inner join commits on commits.hash = deploy_commit_relations.commit_hash").
+		Joins("inner join deploy_commits on deploy_commits.hash = deploy_commit_relations.deploy_hash").
+		Where("deploy_hash in ?", deployCommitHashes).
+		Group("deploy_hash").
+		Select("deploy_hash, max(deployed_at - created_at) as lead_time").
+		Find(&ms).Error; err != nil {
+		return nil, errors.WithStack(err)
+	}
+
+	return ms, nil
+}

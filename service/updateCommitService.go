@@ -155,3 +155,32 @@ func (service UpdateCommitService) UpdateDeployCommitRelationsOver(p model.Proje
 
 	return nil
 }
+
+func (service UpdateCommitService) UpdateDeployLeadTime(p model.ProjectRepository, start time.Time, end time.Time) error {
+	ds, err := service.deployCommitRepository.FindBetweenDeployedAt(p.RepositoryName(), start.Unix(), end.Unix())
+	if err != nil {
+		return err
+	}
+
+	gs, err := service.deployCommitRelationRepository.GetLeadTimeForDeploys(ds.Hashes())
+	if err != nil {
+		return err
+	}
+
+	deploys := model.DeployCommits{}
+	for _, g := range gs {
+		deploy, err := service.deployCommitRepository.FindByHash(g.DeployHash)
+		if err != nil {
+			return err
+		}
+		deploy.LeadTime = g.LeadTime
+
+		deploys = append(deploys, deploy)
+	}
+
+	if err := service.deployCommitRepository.Save(deploys); err != nil {
+		return err
+	}
+
+	return nil
+}
