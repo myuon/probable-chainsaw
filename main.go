@@ -36,10 +36,15 @@ func initLogger() {
 	log.Logger = log.Output(output)
 }
 
+type ReportOptions struct {
+	NoUpdate bool
+}
+
 func main() {
 	initLogger()
 
 	configFile := "keys4.config.yml"
+	options := ReportOptions{}
 
 	root := &cobra.Command{Use: "keys4"}
 	root.AddCommand(&cobra.Command{
@@ -57,6 +62,20 @@ func main() {
 			}
 		},
 	})
+
+	reportCmd := cobra.Command{
+		Use:   "report",
+		Short: "Report the project",
+		Run: func(command *cobra.Command, args []string) {
+			if err := cmd.CmdReport(configFile, options.NoUpdate); err != nil {
+				log.Error().Stack().Err(err).Msg("Failed to report the project")
+				return
+			}
+		},
+	}
+	root.AddCommand(&reportCmd)
+	reportCmd.Flags().BoolVar(&options.NoUpdate, "noupdate", false, "Do not update the project")
+
 	root.AddCommand(&cobra.Command{
 		Use:   "update",
 		Short: "Update the data and statistics",
@@ -67,16 +86,6 @@ func main() {
 			}
 
 			if err := cmd.CmdUpdate(configFile, targetRepo); err != nil {
-				log.Error().Stack().Err(err).Msg("Failed to report the project")
-				return
-			}
-		},
-	})
-	root.AddCommand(&cobra.Command{
-		Use:   "report",
-		Short: "Report the project",
-		Run: func(command *cobra.Command, args []string) {
-			if err := cmd.CmdReport(configFile); err != nil {
 				log.Error().Stack().Err(err).Msg("Failed to report the project")
 				return
 			}

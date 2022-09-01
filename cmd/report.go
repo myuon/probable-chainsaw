@@ -9,7 +9,7 @@ import (
 	"gorm.io/gorm"
 )
 
-func CmdReport(configFile string) error {
+func CmdReport(configFile string, noUpdate bool) error {
 	project, err := infra.LoadProject(configFile)
 	if err != nil {
 		return err

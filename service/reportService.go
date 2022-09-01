@@ -121,26 +121,26 @@ func (service ReportService) GenerateForRepository(report infra.ReportGenerator,
 	startDate := time.Now().Add(-time.Duration(dateCount) * 24 * time.Hour)
 	endDate := time.Now()
 
-	// Calculate deployment frequency and generate the table
-	deployments, err := service.dailyDeploymentCalculator.GetDailyDeployment(p.RepositoryName())
+	ds, err := service.deployCommitRepository.FindBetweenDeployedAt(p.RepositoryName(), startDate.Unix(), endDate.Unix())
 	if err != nil {
 		return err
 	}
 
 	deployMap := map[string]int{}
-	for _, d := range deployments {
-		deployMap[d.Date] = d.Count
+	for _, d := range ds {
+		c := time.Unix(d.DeployedAt, 0).Format("2006-01-02")
+		if _, ok := deployMap[c]; !ok {
+			deployMap[c] = 0
+		}
+
+		deployMap[c] += 1
 	}
+	log.Info().Str("deployMap", fmt.Sprintf("%v", deployMap)).Msg(p.RepositoryName())
 
 	today := time.Now()
 	current := date.StartOfMonth(today)
 	for current.Month() <= today.Month() {
 		current = current.Add(24 * time.Hour)
-	}
-
-	ds, err := service.deployCommitRepository.FindBetweenDeployedAt(p.RepositoryName(), startDate.Unix(), endDate.Unix())
-	if err != nil {
-		return err
 	}
 
 	report.Append(`### Deployment frequency`)
