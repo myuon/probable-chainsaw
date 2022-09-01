@@ -97,9 +97,10 @@ func (service ReportService) GenerateDeployList(p model.ProjectRepository, ds []
 
 		report.BulletList(
 			[]string{fmt.Sprintf(
-				"%v (%v)",
+				"%v (%v), lead time: %v",
 				time.Unix(d.DeployedAt, 0).Format("2006-01-02 15:04:05"),
 				markdownCommitLink(p.Org, p.Name, d.Hash),
+				date.SecondsInHumanReadableFormat(d.LeadTime),
 			)}, 0)
 
 		commitHashes := []string{}

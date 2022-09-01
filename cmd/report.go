@@ -26,7 +26,7 @@ func CmdReport(configFile string, start time.Time, end time.Time) error {
 
 	reportGenerator.Append(`# Report for keys4`)
 
-	reportGenerator.Append(`# In Total`)
+	reportGenerator.Append(`## In Total`)
 	if err := svc.GenerateTotal(reportGenerator, start, end); err != nil {
 		return err
 	}
