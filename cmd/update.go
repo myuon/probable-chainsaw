@@ -14,7 +14,7 @@ func CmdUpdate(configFile string, targetRepository *string) error {
 		return err
 	}
 
-	svc, err := service.NewAnalyzeService(project)
+	svc, err := service.NewUpdateCommitService(project)
 	if err != nil {
 		return err
 	}

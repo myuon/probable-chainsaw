@@ -12,30 +12,30 @@ import (
 	"time"
 )
 
-type AnalyzeCommitService struct {
+type UpdateCommitService struct {
 	commitRepository               infra.CommitRepository
 	deployCommitRepository         infra.DeployCommitRepository
 	deployCommitRelationRepository infra.DeployCommitRelationRepository
 }
 
-func NewAnalyzeService(project model.Project) (AnalyzeCommitService, error) {
+func NewUpdateCommitService(project model.Project) (UpdateCommitService, error) {
 	db, err := gorm.Open(sqlite.Open(project.SqliteFile), &gorm.Config{})
 	if err != nil {
-		return AnalyzeCommitService{}, err
+		return UpdateCommitService{}, err
 	}
 
 	commitRepository := infra.CommitRepository{Db: db}
 	deployCommitRepository := infra.DeployCommitRepository{Db: db}
 	deployCommitRelationRepository := infra.DeployCommitRelationRepository{Db: db}
 
-	return AnalyzeCommitService{
+	return UpdateCommitService{
 		commitRepository:               commitRepository,
 		deployCommitRepository:         deployCommitRepository,
 		deployCommitRelationRepository: deployCommitRelationRepository,
 	}, nil
 }
 
-func (service AnalyzeCommitService) ResetTables() error {
+func (service UpdateCommitService) ResetTables() error {
 	if err := service.commitRepository.ResetTable(); err != nil {
 		return err
 	}
@@ -49,7 +49,7 @@ func (service AnalyzeCommitService) ResetTables() error {
 	return nil
 }
 
-func (service AnalyzeCommitService) UpdateRepositoryCommits(p model.ProjectRepository, mainBranch string, deployBranch string) error {
+func (service UpdateCommitService) UpdateRepositoryCommits(p model.ProjectRepository, mainBranch string, deployBranch string) error {
 	repo, err := infra.GitOperatorCloneOrPull(p.WorkPath(), fmt.Sprintf("git@github.com:%v/%v.git", p.Org, p.Name))
 	if err != nil {
 		return err
@@ -112,7 +112,7 @@ func (service AnalyzeCommitService) UpdateRepositoryCommits(p model.ProjectRepos
 	return nil
 }
 
-func (service AnalyzeCommitService) UpdateDeployCommitRelationsOver(p model.ProjectRepository, startDate time.Time, endDate time.Time) error {
+func (service UpdateCommitService) UpdateDeployCommitRelationsOver(p model.ProjectRepository, startDate time.Time, endDate time.Time) error {
 	current := startDate
 
 	for current.Before(endDate) {
