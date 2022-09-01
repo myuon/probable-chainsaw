@@ -89,23 +89,23 @@ func (service ReportService) GenerateDeployCalendar(deployMap map[string]int, re
 }
 
 func (service ReportService) GenerateDeployList(p model.ProjectRepository, ds []model.DeployCommit, report infra.ReportGenerator) error {
+	list := []string{}
 	for _, d := range ds {
 		commits, err := service.deployCommitRelationRepository.FindByDeployHash(d.Hash)
 		if err != nil {
 			return err
 		}
 
-		report.BulletList(
-			[]string{
-				fmt.Sprintf(
-					"%v (%v), Lead Time: %v, %v commits",
-					time.Unix(d.DeployedAt, 0).Format("2006-01-02 15:04:05"),
-					markdownCommitLink(p.Org, p.Name, d.Hash),
-					date.SecondsInHumanReadableFormat(d.LeadTime),
-					len(commits),
-				),
-			}, 0)
+		list = append(list, fmt.Sprintf(
+			"%v (%v), Lead Time: %v, %v commits",
+			time.Unix(d.DeployedAt, 0).Format("2006-01-02 15:04:05"),
+			markdownCommitLink(p.Org, p.Name, d.Hash),
+			date.SecondsInHumanReadableFormat(d.LeadTime),
+			len(commits),
+		))
 	}
+
+	report.BulletList(list, 0)
 
 	return nil
 }
