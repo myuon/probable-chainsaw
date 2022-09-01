@@ -7,24 +7,32 @@ import (
 )
 
 type ReportGenerator struct {
-	Markdown string
+	Markdown *string
 }
 
-func (g *ReportGenerator) Append(msg string) {
-	g.Markdown += fmt.Sprintf("%v\n", msg)
-}
+func NewReportGenerator() ReportGenerator {
+	s := ""
 
-func (g *ReportGenerator) BulletList(items []string, depth int) {
-	for _, item := range items {
-		g.Markdown += fmt.Sprintf("%v- %v\n", strings.Repeat(" ", depth*4), item)
+	return ReportGenerator{
+		Markdown: &s,
 	}
 }
 
-func (g *ReportGenerator) WriteFile(path string) error {
-	if err := os.WriteFile(path, []byte(g.Markdown), 0644); err != nil {
+func (g ReportGenerator) Append(msg string) {
+	*g.Markdown += fmt.Sprintf("%v\n", msg)
+}
+
+func (g ReportGenerator) BulletList(items []string, depth int) {
+	for _, item := range items {
+		*g.Markdown += fmt.Sprintf("%v- %v\n", strings.Repeat(" ", depth*4), item)
+	}
+}
+
+func (g ReportGenerator) WriteFile(path string) error {
+	if err := os.WriteFile(path, []byte(*g.Markdown), 0644); err != nil {
 		return err
 	}
-	g.Markdown = ""
+	*g.Markdown = ""
 
 	return nil
 }

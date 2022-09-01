@@ -5,6 +5,7 @@ import (
 	"github.com/myuon/probable-chainsaw/infra"
 	"github.com/myuon/probable-chainsaw/lib/date"
 	"github.com/myuon/probable-chainsaw/model"
+	"github.com/rs/zerolog/log"
 	"gorm.io/gorm"
 	"sort"
 	"time"
@@ -40,45 +41,14 @@ func NewReportService(db *gorm.DB) ReportService {
 	}
 }
 
-func (service ReportService) GenerateForRepository(report infra.ReportGenerator, p model.ProjectRepository) error {
-	// Generate a report for this 30 days
-	dateCount := 30
-	startDate := time.Now().Add(-time.Duration(dateCount) * 24 * time.Hour)
-	endDate := time.Now()
-
-	// Calculate deployment frequency and generate the table
-	deployments, err := service.dailyDeploymentCalculator.GetDailyDeployment(p.RepositoryName())
-	if err != nil {
-		return err
-	}
-
-	deployMap := map[string]int{}
-	for _, d := range deployments {
-		deployMap[d.Date] = d.Count
-	}
-
-	deployCountMetrics := []int{}
-
+func (service ReportService) GenerateDeployCalendar(deployMap map[string]int, report infra.ReportGenerator) error {
 	today := time.Now()
 	current := date.StartOfMonth(today)
-	for current.Month() <= today.Month() {
-		count := deployMap[current.Format("2006-01")]
-		deployCountMetrics = append(deployCountMetrics, count)
-		current = current.Add(24 * time.Hour)
-	}
-
-	sort.Ints(deployCountMetrics)
-
-	report.Append(fmt.Sprintf(`## Repository: %v/%v`, p.Org, p.Name))
-
-	report.Append(`### Deployment frequency`)
+	current = current.Add(-24 * time.Hour * time.Duration(current.Weekday()))
+	week := []int{}
 
 	markdown := `|Sun|Mon|Tue|Wed|Thu|Fri|Sat|SumOfWeekday|
 |---|---|---|---|---|---|---|---|`
-
-	current = date.StartOfMonth(today)
-	current = current.Add(-24 * time.Hour * time.Duration(current.Weekday()))
-	week := []int{}
 
 	for current.Month() <= today.Month() {
 		if current.Weekday() == 0 {
@@ -89,15 +59,14 @@ func (service ReportService) GenerateForRepository(report infra.ReportGenerator,
 			markdown += fmt.Sprintf(" |")
 		} else {
 			count, ok := deployMap[current.Format("2006-01-02")]
-			deployCountMetrics = append(deployCountMetrics, count)
 			if current.Weekday() != time.Sunday && current.Weekday() != time.Saturday {
 				week = append(week, count)
 			}
 
 			if ok {
-				markdown += fmt.Sprintf("%v|", count)
+				markdown += fmt.Sprintf("%v (**%v**)|", current.Day(), count)
 			} else {
-				markdown += fmt.Sprintf(" |")
+				markdown += fmt.Sprintf("%v |", current.Day())
 			}
 		}
 
@@ -117,13 +86,10 @@ func (service ReportService) GenerateForRepository(report infra.ReportGenerator,
 
 	report.Append(markdown)
 
-	ds, err := service.deployCommitRepository.FindBetweenDeployedAt(p.RepositoryName(), startDate.Unix(), endDate.Unix())
-	if err != nil {
-		return err
-	}
+	return nil
+}
 
-	report.Append(fmt.Sprintf(`### Deployments (%v)`, len(ds)))
-
+func (service ReportService) GenerateDeployList(p model.ProjectRepository, ds []model.DeployCommit, report infra.ReportGenerator) error {
 	for _, d := range ds {
 		commits, err := service.deployCommitRelationRepository.FindByDeployHash(d.Hash)
 		if err != nil {
@@ -142,6 +108,49 @@ func (service ReportService) GenerateForRepository(report infra.ReportGenerator,
 			commitHashes = append(commitHashes, markdownCommitLink(p.Org, p.Name, c.CommitHash))
 		}
 		report.BulletList(commitHashes, 1)
+	}
+
+	return nil
+}
+
+func (service ReportService) GenerateForRepository(report infra.ReportGenerator, p model.ProjectRepository) error {
+	log.Info().Msgf("Generating report for repository %v", p.RepositoryName())
+
+	// Generate a report for this 30 days
+	dateCount := 30
+	startDate := time.Now().Add(-time.Duration(dateCount) * 24 * time.Hour)
+	endDate := time.Now()
+
+	// Calculate deployment frequency and generate the table
+	deployments, err := service.dailyDeploymentCalculator.GetDailyDeployment(p.RepositoryName())
+	if err != nil {
+		return err
+	}
+
+	deployMap := map[string]int{}
+	for _, d := range deployments {
+		deployMap[d.Date] = d.Count
+	}
+
+	today := time.Now()
+	current := date.StartOfMonth(today)
+	for current.Month() <= today.Month() {
+		current = current.Add(24 * time.Hour)
+	}
+
+	ds, err := service.deployCommitRepository.FindBetweenDeployedAt(p.RepositoryName(), startDate.Unix(), endDate.Unix())
+	if err != nil {
+		return err
+	}
+
+	report.Append(`### Deployment frequency`)
+	if err := service.GenerateDeployCalendar(deployMap, report); err != nil {
+		return err
+	}
+
+	report.Append(fmt.Sprintf(`### Deployments (%v)`, len(ds)))
+	if err := service.GenerateDeployList(p, ds, report); err != nil {
+		return err
 	}
 
 	return nil

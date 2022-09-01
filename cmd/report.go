@@ -1,6 +1,7 @@
 package cmd
 
 import (
+	"fmt"
 	"github.com/myuon/probable-chainsaw/infra"
 	"github.com/myuon/probable-chainsaw/service"
 	"github.com/rs/zerolog/log"
@@ -20,10 +21,12 @@ func CmdReport(configFile string) error {
 	}
 	svc := service.NewReportService(db)
 
-	reportGenerator := infra.ReportGenerator{Markdown: ""}
+	reportGenerator := infra.NewReportGenerator()
 
 	reportGenerator.Append(`# Report for keys4`)
 	for _, p := range project.Repository {
+		reportGenerator.Append(fmt.Sprintf(`## Repository: %v/%v`, p.Org, p.Name))
+
 		if err := svc.GenerateForRepository(reportGenerator, p); err != nil {
 			return err
 		}
