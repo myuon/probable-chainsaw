@@ -25,6 +25,12 @@ func CmdReport(configFile string, start time.Time, end time.Time) error {
 	reportGenerator := infra.NewReportGenerator()
 
 	reportGenerator.Append(`# Report for keys4`)
+
+	reportGenerator.Append(`# In Total`)
+	if err := svc.GenerateTotal(reportGenerator, start, end); err != nil {
+		return err
+	}
+
 	for _, p := range project.Repository {
 		reportGenerator.Append(fmt.Sprintf(`## Repository: %v/%v`, p.Org, p.Name))
 

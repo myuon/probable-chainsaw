@@ -148,3 +148,35 @@ func (service ReportService) GenerateForRepository(report infra.ReportGenerator,
 
 	return nil
 }
+
+func (service ReportService) GenerateTotal(report infra.ReportGenerator, start time.Time, end time.Time) error {
+	log.Info().Msgf("Generating report for total")
+
+	ds, err := service.deployCommitRepository.FindBetweenDeployedAtAnyRepository(start.Unix(), end.Unix())
+	if err != nil {
+		return err
+	}
+
+	deployMap := map[string]int{}
+	for _, d := range ds {
+		c := time.Unix(d.DeployedAt, 0).Format("2006-01-02")
+		if _, ok := deployMap[c]; !ok {
+			deployMap[c] = 0
+		}
+
+		deployMap[c] += 1
+	}
+
+	today := time.Now()
+	current := date.StartOfMonth(today)
+	for current.Month() <= today.Month() {
+		current = current.Add(24 * time.Hour)
+	}
+
+	report.Append(`### Deployment frequency`)
+	if err := service.GenerateDeployCalendar(deployMap, report, start, end); err != nil {
+		return err
+	}
+
+	return nil
+}

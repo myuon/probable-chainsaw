@@ -31,6 +31,15 @@ func (r DeployCommitRepository) FindBetweenDeployedAt(repositoryName string, sta
 	return rs, nil
 }
 
+func (r DeployCommitRepository) FindBetweenDeployedAtAnyRepository(start int64, end int64) ([]model.DeployCommit, error) {
+	rs := []model.DeployCommit{}
+	if err := r.Db.Where("deployed_at >= ? AND deployed_at < ?", start, end).Find(&rs).Error; err != nil {
+		return nil, errors.WithStack(err)
+	}
+
+	return rs, nil
+}
+
 func (r DeployCommitRepository) Create(commits []model.DeployCommit) error {
 	if err := r.Db.Create(&commits).Error; err != nil {
 		return errors.WithStack(err)
