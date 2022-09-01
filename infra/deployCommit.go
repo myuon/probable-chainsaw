@@ -22,9 +22,9 @@ func (r DeployCommitRepository) ResetTable() error {
 	return nil
 }
 
-func (r DeployCommitRepository) FindBetweenDeployedAt(start int64, end int64) ([]model.DeployCommit, error) {
+func (r DeployCommitRepository) FindBetweenDeployedAt(repositoryName string, start int64, end int64) ([]model.DeployCommit, error) {
 	rs := []model.DeployCommit{}
-	if err := r.Db.Where("deployed_at >= ? AND deployed_at < ?", start, end).Find(&rs).Error; err != nil {
+	if err := r.Db.Where("repository_name = ? AND deployed_at >= ? AND deployed_at < ?", repositoryName, start, end).Find(&rs).Error; err != nil {
 		return nil, errors.WithStack(err)
 	}
 

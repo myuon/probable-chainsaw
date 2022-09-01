@@ -41,4 +41,6 @@ type Project struct {
 	RepositoryUrl string              `json:"repositoryUrl"`
 	SqliteFile    string              `json:"sqliteFile"`
 	Repository    []ProjectRepository `json:"repository"`
+	MainBranch    string              `json:"mainBranch"`
+	DeployBranch  string              `json:"deployBranch"`
 }

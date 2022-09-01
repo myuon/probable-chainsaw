@@ -8,7 +8,6 @@ import (
 	"github.com/rs/zerolog/log"
 	"gorm.io/driver/sqlite"
 	"gorm.io/gorm"
-	"os/exec"
 	"strings"
 	"time"
 )
@@ -50,7 +49,7 @@ func (service AnalyzeCommitService) ResetTables() error {
 	return nil
 }
 
-func (service AnalyzeCommitService) UpdateRepositoryCommits(p model.ProjectRepository) error {
+func (service AnalyzeCommitService) UpdateRepositoryCommits(p model.ProjectRepository, mainBranch string, deployBranch string) error {
 	repo, err := infra.GitOperatorCloneOrPull(p.WorkPath(), fmt.Sprintf("git@github.com:%v/%v.git", p.Org, p.Name))
 	if err != nil {
 		return err
@@ -67,7 +66,7 @@ func (service AnalyzeCommitService) UpdateRepositoryCommits(p model.ProjectRepos
 	}
 
 	// find deployed commits from "deploy" branch
-	commits, err = repo.GetCommitsInBranch("origin/deploy")
+	commits, err = repo.GetCommitsInBranch(deployBranch)
 	if err != nil {
 		return err
 	}
@@ -76,7 +75,7 @@ func (service AnalyzeCommitService) UpdateRepositoryCommits(p model.ProjectRepos
 	if err := commits.ForEach(func(c *object.Commit) error {
 		// check if this is a merge commit from "master" branch
 		// FIXME: filter only `Merge pull request #XXX from NAME/BRANCH` ones
-		if !(strings.Contains(c.Message, "Merge pull request") && strings.Contains(c.Message, "master")) {
+		if !(strings.Contains(c.Message, "Merge pull request") && strings.Contains(c.Message, mainBranch)) {
 			return nil
 		}
 
@@ -117,19 +116,19 @@ func (service AnalyzeCommitService) UpdateDeployCommitRelationsOver(p model.Proj
 	current := startDate
 
 	for current.Before(endDate) {
-		deploys, err := service.deployCommitRepository.FindBetweenDeployedAt(current.Unix(), current.Add(24*time.Hour).Unix())
+		deploys, err := service.deployCommitRepository.FindBetweenDeployedAt(p.RepositoryName(), current.Unix(), current.Add(24*time.Hour).Unix())
 		if err != nil {
 			return err
 		}
 
 		for _, d := range deploys {
-			bin, err := exec.Command("git", "-C", p.WorkPath(), "log", "--pretty=format:%H", fmt.Sprintf("%v..%v", d.PreviousHash, d.Hash)).Output()
+			commits, err := infra.DiffCommitsBetweenHashes(p, d.PreviousHash, d.Hash)
 			if err != nil {
 				return err
 			}
 
 			relations := []infra.DeployCommitRelation{}
-			for _, hash := range strings.Split(string(bin), "\n") {
+			for _, hash := range commits {
 				if hash == "" {
 					continue
 				}
@@ -147,7 +146,7 @@ func (service AnalyzeCommitService) UpdateDeployCommitRelationsOver(p model.Proj
 				return err
 			}
 
-			log.Info().Msgf("%v", string(bin))
+			log.Info().Msgf("%v", commits)
 		}
 
 		log.Info().Int(fmt.Sprintf("%v (%v)", current.Format("2006-01-02"), current.Weekday()), len(deploys)).Msg("Deployment frequency")

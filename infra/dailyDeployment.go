@@ -15,11 +15,12 @@ type DailyDeploymentCalculator struct {
 	Db *gorm.DB
 }
 
-func (r DailyDeploymentCalculator) GetDailyDeployment() ([]DailyDeployment, error) {
+func (r DailyDeploymentCalculator) GetDailyDeployment(repositoryName string) ([]DailyDeployment, error) {
 	deployments := []DailyDeployment{}
 
 	if err := r.Db.
 		Model(&model.DeployCommit{}).
+		Where("repository_name = ?", repositoryName).
 		Group("date(deployed_at, 'unixepoch')").
 		Select("date(deployed_at, 'unixepoch') as date, count(hash) as count").
 		Find(&deployments).Error; err != nil {

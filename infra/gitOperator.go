@@ -6,9 +6,12 @@ import (
 	"github.com/go-git/go-git/v5/plumbing"
 	"github.com/go-git/go-git/v5/plumbing/object"
 	"github.com/go-git/go-git/v5/plumbing/transport/ssh"
+	"github.com/myuon/probable-chainsaw/model"
 	"github.com/pkg/errors"
 	"github.com/rs/zerolog/log"
 	"os"
+	"os/exec"
+	"strings"
 )
 
 type GitOperator struct {
@@ -106,4 +109,17 @@ func (g GitOperator) GetCommitsInBranch(branchName string) (object.CommitIter, e
 	}
 
 	return commits, nil
+}
+
+func DiffCommitsBetweenHashes(p model.ProjectRepository, prevHash string, nextHash string) ([]string, error) {
+	bin, err := exec.Command("git", "-C", p.WorkPath(), "log", "--pretty=format:%H", fmt.Sprintf("%v..%v", prevHash, nextHash)).Output()
+	if err != nil {
+		log.
+			Info().
+			Str("command", fmt.Sprintf("git -C %v log --pretty=format:%v %v..%v", p.WorkPath(), "%H", prevHash, nextHash)).
+			Msg("git log")
+		return nil, errors.WithStack(err)
+	}
+
+	return strings.Split(string(bin), "\n"), nil
 }

@@ -51,7 +51,7 @@ func CmdReport(configFile string) error {
 		endDate := time.Now()
 
 		// Calculate deployment frequency and generate the table
-		deployments, err := dailyDeploymentsRepository.GetDailyDeployment()
+		deployments, err := dailyDeploymentsRepository.GetDailyDeployment(p.RepositoryName())
 		if err != nil {
 			return err
 		}
@@ -121,7 +121,7 @@ func CmdReport(configFile string) error {
 
 		reportGenerator.Append(markdown)
 
-		ds, err := deployCommitRepository.FindBetweenDeployedAt(startDate.Unix(), endDate.Unix())
+		ds, err := deployCommitRepository.FindBetweenDeployedAt(p.RepositoryName(), startDate.Unix(), endDate.Unix())
 		if err != nil {
 			return err
 		}

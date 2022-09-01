@@ -4,6 +4,7 @@ import (
 	"github.com/myuon/probable-chainsaw/infra"
 	"github.com/myuon/probable-chainsaw/model"
 	"github.com/myuon/probable-chainsaw/service"
+	"github.com/rs/zerolog/log"
 	"time"
 )
 
@@ -31,12 +32,17 @@ func CmdUpdate(configFile string, targetRepository *string) error {
 			}
 		}
 
-		if err := svc.UpdateRepositoryCommits(p); err != nil {
+		if err := svc.UpdateRepositoryCommits(p, project.MainBranch, project.DeployBranch); err != nil {
 			return err
 		}
+
+		log.Info().Msgf("Updated %v", p.RepositoryName())
+
 		if err := svc.UpdateDeployCommitRelationsOver(p, time.Now().Add(-24*time.Hour*time.Duration(datesCount)), time.Now()); err != nil {
 			return err
 		}
+
+		log.Info().Msgf("Saved commits and deploys of %v", p.RepositoryName())
 	}
 
 	type Joined struct {
