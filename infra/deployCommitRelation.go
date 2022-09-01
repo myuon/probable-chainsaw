@@ -1,6 +1,7 @@
 package infra
 
 import (
+	"github.com/pkg/errors"
 	"gorm.io/gorm"
 )
 
@@ -15,10 +16,10 @@ type DeployCommitRelationRepository struct {
 
 func (r DeployCommitRelationRepository) ResetTable() error {
 	if err := r.Db.Migrator().DropTable(&DeployCommitRelation{}); err != nil {
-		return err
+		return errors.WithStack(err)
 	}
 	if err := r.Db.AutoMigrate(&DeployCommitRelation{}); err != nil {
-		return err
+		return errors.WithStack(err)
 	}
 
 	return nil
@@ -27,7 +28,7 @@ func (r DeployCommitRelationRepository) ResetTable() error {
 func (r DeployCommitRelationRepository) FindByDeployHash(deployHash string) ([]DeployCommitRelation, error) {
 	rs := []DeployCommitRelation{}
 	if err := r.Db.Where("deploy_hash = ?", deployHash).Find(&rs).Error; err != nil {
-		return nil, err
+		return nil, errors.WithStack(err)
 	}
 
 	return rs, nil
@@ -35,7 +36,7 @@ func (r DeployCommitRelationRepository) FindByDeployHash(deployHash string) ([]D
 
 func (r DeployCommitRelationRepository) Create(relations []DeployCommitRelation) error {
 	if err := r.Db.Create(&relations).Error; err != nil {
-		return err
+		return errors.WithStack(err)
 	}
 
 	return nil
@@ -43,7 +44,7 @@ func (r DeployCommitRelationRepository) Create(relations []DeployCommitRelation)
 
 func (r DeployCommitRelationRepository) Save(relations []DeployCommitRelation) error {
 	if err := r.Db.Save(&relations).Error; err != nil {
-		return err
+		return errors.WithStack(err)
 	}
 
 	return nil

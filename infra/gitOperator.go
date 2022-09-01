@@ -19,7 +19,7 @@ type GitOperator struct {
 func sshAuth() (*ssh.PublicKeys, error) {
 	publicKey, err := ssh.NewPublicKeysFromFile("git", fmt.Sprintf("%v/.ssh/id_rsa", os.Getenv("HOME")), "")
 	if err != nil {
-		return nil, err
+		return nil, errors.WithStack(err)
 	}
 
 	return publicKey, nil
@@ -37,7 +37,7 @@ func GitOperatorClone(path string, url string) (GitOperator, error) {
 		Auth:     auth,
 	})
 	if err != nil {
-		return GitOperator{}, err
+		return GitOperator{}, errors.WithStack(err)
 	}
 
 	return GitOperator{repo: repo}, nil
@@ -46,7 +46,7 @@ func GitOperatorClone(path string, url string) (GitOperator, error) {
 func GitOperatorOpen(path string) (GitOperator, error) {
 	repo, err := git.PlainOpen(path)
 	if err != nil {
-		return GitOperator{}, err
+		return GitOperator{}, errors.WithStack(err)
 	}
 
 	return GitOperator{repo: repo}, nil
@@ -75,7 +75,7 @@ func GitOperatorCloneOrPull(path string, url string) (GitOperator, error) {
 			if err == git.NoErrAlreadyUpToDate {
 				return op, nil
 			} else {
-				return GitOperator{}, err
+				return GitOperator{}, errors.WithStack(err)
 			}
 		}
 
@@ -86,7 +86,7 @@ func GitOperatorCloneOrPull(path string, url string) (GitOperator, error) {
 func (g GitOperator) GetCommitsFromHEAD() (object.CommitIter, error) {
 	commits, err := g.repo.Log(&git.LogOptions{})
 	if err != nil {
-		return nil, err
+		return nil, errors.WithStack(err)
 	}
 
 	return commits, nil

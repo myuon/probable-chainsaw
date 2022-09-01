@@ -14,11 +14,11 @@ type CommitRepository struct {
 
 func (r CommitRepository) ResetTable() error {
 	if err := r.Db.Migrator().DropTable(&model.Commit{}); err != nil {
-		return err
+		return errors.WithStack(err)
 	}
 
 	if err := r.Db.AutoMigrate(&model.Commit{}); err != nil {
-		return err
+		return errors.WithStack(err)
 	}
 
 	return nil
@@ -40,7 +40,7 @@ func (r CommitRepository) Save(repositoryName string, commits object.CommitIter)
 			Parent:         parent,
 			RepositoryName: repositoryName,
 		}).Error; err != nil {
-			return err
+			return errors.WithStack(err)
 		}
 
 		return nil

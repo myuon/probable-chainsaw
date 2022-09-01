@@ -2,6 +2,7 @@ package infra
 
 import (
 	"github.com/myuon/probable-chainsaw/model"
+	"github.com/pkg/errors"
 	"gorm.io/gorm"
 )
 
@@ -22,7 +23,7 @@ func (r DailyDeploymentCalculator) GetDailyDeployment() ([]DailyDeployment, erro
 		Group("date(deployed_at, 'unixepoch')").
 		Select("date(deployed_at, 'unixepoch') as date, count(hash) as count").
 		Find(&deployments).Error; err != nil {
-		return nil, err
+		return nil, errors.WithStack(err)
 	}
 
 	return deployments, nil

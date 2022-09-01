@@ -7,7 +7,7 @@ import (
 	"time"
 )
 
-func CmdUpdate(configFile string) error {
+func CmdUpdate(configFile string, targetRepository *string) error {
 	project, err := infra.LoadProject(configFile)
 	if err != nil {
 		return err
@@ -25,6 +25,12 @@ func CmdUpdate(configFile string) error {
 	// update deployment table
 	datesCount := 28
 	for _, p := range project.Repository {
+		if targetRepository != nil {
+			if p.Name != *targetRepository && p.RepositoryName() != *targetRepository {
+				continue
+			}
+		}
+
 		if err := svc.UpdateRepositoryCommits(p); err != nil {
 			return err
 		}

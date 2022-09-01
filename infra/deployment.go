@@ -2,6 +2,7 @@ package infra
 
 import (
 	"github.com/myuon/probable-chainsaw/model"
+	"github.com/pkg/errors"
 	"gorm.io/gorm"
 	"time"
 )
@@ -12,10 +13,10 @@ type DeploymentRepository struct {
 
 func (r DeploymentRepository) ResetTable() error {
 	if err := r.Db.Migrator().DropTable(&model.Deployment{}); err != nil {
-		return err
+		return errors.WithStack(err)
 	}
 	if err := r.Db.AutoMigrate(&model.Deployment{}); err != nil {
-		return err
+		return errors.WithStack(err)
 	}
 
 	return nil
@@ -24,7 +25,7 @@ func (r DeploymentRepository) ResetTable() error {
 func (r DeploymentRepository) FindByDeployedAt(start time.Time, end time.Time) ([]model.Deployment, error) {
 	rs := []model.Deployment{}
 	if err := r.Db.Where("deployed_time >= ? AND deployed_time < ?", start.String(), end.String()).Find(&rs).Error; err != nil {
-		return nil, err
+		return nil, errors.WithStack(err)
 	}
 
 	return rs, nil
@@ -32,7 +33,7 @@ func (r DeploymentRepository) FindByDeployedAt(start time.Time, end time.Time) (
 
 func (r DeploymentRepository) Create(t model.Deployment) error {
 	if err := r.Db.Create(&t).Error; err != nil {
-		return err
+		return errors.WithStack(err)
 	}
 
 	return nil

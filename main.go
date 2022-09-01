@@ -61,17 +61,12 @@ func main() {
 		Use:   "update",
 		Short: "Update the data and statistics",
 		Run: func(command *cobra.Command, args []string) {
-			if err := cmd.CmdUpdate(configFile); err != nil {
-				log.Error().Stack().Err(err).Msg("Failed to report the project")
-				return
+			var targetRepo *string
+			if len(args) > 0 {
+				targetRepo = &args[0]
 			}
-		},
-	})
-	root.AddCommand(&cobra.Command{
-		Use:   "clone",
-		Short: "Clone or pull projects",
-		Run: func(command *cobra.Command, args []string) {
-			if err := cmd.CmdReport(configFile); err != nil {
+
+			if err := cmd.CmdUpdate(configFile, targetRepo); err != nil {
 				log.Error().Stack().Err(err).Msg("Failed to report the project")
 				return
 			}
