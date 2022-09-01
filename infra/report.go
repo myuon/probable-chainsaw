@@ -26,6 +26,7 @@ func (g ReportGenerator) BulletList(items []string, depth int) {
 	for _, item := range items {
 		*g.Markdown += fmt.Sprintf("%v- %v\n", strings.Repeat(" ", depth*4), item)
 	}
+	*g.Markdown += "\n"
 }
 
 func (g ReportGenerator) WriteFile(path string) error {

@@ -118,14 +118,6 @@ func (service ReportService) GenerateForRepository(report infra.ReportGenerator,
 		return err
 	}
 
-	deployMap := ds.DeployDailyMap()
-
-	today := time.Now()
-	current := date.StartOfMonth(today)
-	for current.Month() <= today.Month() {
-		current = current.Add(24 * time.Hour)
-	}
-
 	report.Append(`### Summary`)
 	report.BulletList([]string{
 		fmt.Sprintf("Total Deployments: %v", len(ds)),
@@ -133,7 +125,7 @@ func (service ReportService) GenerateForRepository(report infra.ReportGenerator,
 	}, 0)
 
 	report.Append(`### Deployment frequency`)
-	if err := service.GenerateDeployCalendar(deployMap, report, start, end); err != nil {
+	if err := service.GenerateDeployCalendar(ds.DeployDailyMap(), report, start, end); err != nil {
 		return err
 	}
 
@@ -153,24 +145,14 @@ func (service ReportService) GenerateTotal(report infra.ReportGenerator, start t
 		return err
 	}
 
-	deployMap := map[string]int{}
-	for _, d := range ds {
-		c := time.Unix(d.DeployedAt, 0).Format("2006-01-02")
-		if _, ok := deployMap[c]; !ok {
-			deployMap[c] = 0
-		}
-
-		deployMap[c] += 1
-	}
-
-	today := time.Now()
-	current := date.StartOfMonth(today)
-	for current.Month() <= today.Month() {
-		current = current.Add(24 * time.Hour)
-	}
+	report.Append(`### Summary`)
+	report.BulletList([]string{
+		fmt.Sprintf("Total Deployments: %v", len(ds)),
+		fmt.Sprintf("Avg Lead Time: %v", date.SecondsInHumanReadableFormat(ds.LeadTimeAvg())),
+	}, 0)
 
 	report.Append(`### Deployment frequency`)
-	if err := service.GenerateDeployCalendar(deployMap, report, start, end); err != nil {
+	if err := service.GenerateDeployCalendar(ds.DeployDailyMap(), report, start, end); err != nil {
 		return err
 	}
 
