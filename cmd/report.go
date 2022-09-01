@@ -7,9 +7,10 @@ import (
 	"github.com/rs/zerolog/log"
 	"gorm.io/driver/sqlite"
 	"gorm.io/gorm"
+	"time"
 )
 
-func CmdReport(configFile string) error {
+func CmdReport(configFile string, start time.Time, end time.Time) error {
 	project, err := infra.LoadProject(configFile)
 	if err != nil {
 		return err
@@ -27,7 +28,7 @@ func CmdReport(configFile string) error {
 	for _, p := range project.Repository {
 		reportGenerator.Append(fmt.Sprintf(`## Repository: %v/%v`, p.Org, p.Name))
 
-		if err := svc.GenerateForRepository(reportGenerator, p); err != nil {
+		if err := svc.GenerateForRepository(reportGenerator, p, start, end); err != nil {
 			return err
 		}
 	}

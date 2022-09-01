@@ -19,7 +19,7 @@ func NewReportGenerator() ReportGenerator {
 }
 
 func (g ReportGenerator) Append(msg string) {
-	*g.Markdown += fmt.Sprintf("%v\n", msg)
+	*g.Markdown += fmt.Sprintf("%v\n\n", msg)
 }
 
 func (g ReportGenerator) BulletList(items []string, depth int) {

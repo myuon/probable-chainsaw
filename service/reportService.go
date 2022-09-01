@@ -113,15 +113,10 @@ func (service ReportService) GenerateDeployList(p model.ProjectRepository, ds []
 	return nil
 }
 
-func (service ReportService) GenerateForRepository(report infra.ReportGenerator, p model.ProjectRepository) error {
+func (service ReportService) GenerateForRepository(report infra.ReportGenerator, p model.ProjectRepository, start time.Time, end time.Time) error {
 	log.Info().Msgf("Generating report for repository %v", p.RepositoryName())
 
-	// Generate a report for this 30 days
-	dateCount := 30
-	startDate := time.Now().Add(-time.Duration(dateCount) * 24 * time.Hour)
-	endDate := time.Now()
-
-	ds, err := service.deployCommitRepository.FindBetweenDeployedAt(p.RepositoryName(), startDate.Unix(), endDate.Unix())
+	ds, err := service.deployCommitRepository.FindBetweenDeployedAt(p.RepositoryName(), start.Unix(), end.Unix())
 	if err != nil {
 		return err
 	}

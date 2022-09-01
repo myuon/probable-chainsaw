@@ -8,6 +8,7 @@ import (
 	"github.com/rs/zerolog/log"
 	"github.com/spf13/cobra"
 	"os"
+	"time"
 )
 
 func MarshalStack(err error) interface{} {
@@ -38,6 +39,15 @@ func initLogger() {
 
 type ReportOptions struct {
 	NoUpdate bool
+	Month    int
+}
+
+func (r ReportOptions) Span() (time.Time, time.Time) {
+	y, _, d := time.Now().Date()
+	start := time.Date(y, time.Month(r.Month), d, 0, 0, 0, 0, time.Local)
+	end := start.AddDate(0, 1, 0)
+
+	return start, end
 }
 
 func main() {
@@ -67,14 +77,16 @@ func main() {
 		Use:   "report",
 		Short: "Report the project",
 		Run: func(command *cobra.Command, args []string) {
+			start, end := options.Span()
+
 			if !options.NoUpdate {
-				if err := cmd.CmdUpdate(configFile, nil); err != nil {
+				if err := cmd.CmdUpdate(configFile, start, end, nil); err != nil {
 					log.Error().Stack().Err(err).Msg("Failed to report the project")
 					return
 				}
 			}
 
-			if err := cmd.CmdReport(configFile); err != nil {
+			if err := cmd.CmdReport(configFile, start, end); err != nil {
 				log.Error().Stack().Err(err).Msg("Failed to report the project")
 				return
 			}
@@ -82,18 +94,21 @@ func main() {
 	}
 	root.AddCommand(&reportCmd)
 	reportCmd.Flags().BoolVar(&options.NoUpdate, "noupdate", false, "Do not update the project")
+	reportCmd.Flags().IntVar(&options.Month, "month", int(time.Now().Month()), "Month to report")
 
 	// loe-level commands
 	root.AddCommand(&cobra.Command{
 		Use:   "update",
 		Short: "Update the data and statistics",
 		Run: func(command *cobra.Command, args []string) {
+			start, end := options.Span()
+
 			var targetRepo *string
 			if len(args) > 0 {
 				targetRepo = &args[0]
 			}
 
-			if err := cmd.CmdUpdate(configFile, targetRepo); err != nil {
+			if err := cmd.CmdUpdate(configFile, start, end, targetRepo); err != nil {
 				log.Error().Stack().Err(err).Msg("Failed to report the project")
 				return
 			}

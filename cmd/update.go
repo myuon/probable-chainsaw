@@ -8,7 +8,7 @@ import (
 	"time"
 )
 
-func CmdUpdate(configFile string, targetRepository *string) error {
+func CmdUpdate(configFile string, start time.Time, end time.Time, targetRepository *string) error {
 	project, err := infra.LoadProject(configFile)
 	if err != nil {
 		return err
@@ -24,7 +24,6 @@ func CmdUpdate(configFile string, targetRepository *string) error {
 	}
 
 	// update deployment table
-	datesCount := 28
 	for _, p := range project.Repository {
 		if targetRepository != nil {
 			if p.Name != *targetRepository && p.RepositoryName() != *targetRepository {
@@ -38,7 +37,7 @@ func CmdUpdate(configFile string, targetRepository *string) error {
 
 		log.Info().Msgf("Updated %v", p.RepositoryName())
 
-		if err := svc.UpdateDeployCommitRelationsOver(p, time.Now().Add(-24*time.Hour*time.Duration(datesCount)), time.Now()); err != nil {
+		if err := svc.UpdateDeployCommitRelationsOver(p, start, end); err != nil {
 			return err
 		}
 
