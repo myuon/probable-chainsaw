@@ -67,7 +67,14 @@ func main() {
 		Use:   "report",
 		Short: "Report the project",
 		Run: func(command *cobra.Command, args []string) {
-			if err := cmd.CmdReport(configFile, options.NoUpdate); err != nil {
+			if !options.NoUpdate {
+				if err := cmd.CmdUpdate(configFile, nil); err != nil {
+					log.Error().Stack().Err(err).Msg("Failed to report the project")
+					return
+				}
+			}
+
+			if err := cmd.CmdReport(configFile); err != nil {
 				log.Error().Stack().Err(err).Msg("Failed to report the project")
 				return
 			}
@@ -76,6 +83,7 @@ func main() {
 	root.AddCommand(&reportCmd)
 	reportCmd.Flags().BoolVar(&options.NoUpdate, "noupdate", false, "Do not update the project")
 
+	// loe-level commands
 	root.AddCommand(&cobra.Command{
 		Use:   "update",
 		Short: "Update the data and statistics",
