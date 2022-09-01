@@ -110,6 +110,41 @@ func (service ReportService) GenerateDeployList(p model.ProjectRepository, ds []
 	return nil
 }
 
+func (service ReportService) GenerateContributors(contributorsMap map[string]model.DeployCommits, report infra.ReportGenerator) error {
+	type pair struct {
+		author string
+		len    int
+	}
+	pairs := []pair{}
+	for k, v := range contributorsMap {
+		pairs = append(pairs, pair{
+			author: k,
+			len:    len(v),
+		})
+	}
+	sort.Slice(pairs, func(i, j int) bool {
+		return pairs[i].len > pairs[j].len
+	})
+
+	list := []string{}
+	for i, p := range pairs {
+		if i >= 3 {
+			break
+		}
+
+		icon := ""
+		if i == 0 {
+			icon = "👑"
+		}
+
+		list = append(list, fmt.Sprintf("%v **%v** (%v commits)", icon, p.author, p.len))
+	}
+
+	report.BulletList(list, 0)
+
+	return nil
+}
+
 func (service ReportService) GenerateForRepository(report infra.ReportGenerator, p model.ProjectRepository, start time.Time, end time.Time) error {
 	log.Info().Msgf("Generating report for repository %v", p.RepositoryName())
 

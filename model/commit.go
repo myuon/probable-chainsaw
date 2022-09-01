@@ -55,3 +55,16 @@ func (ds DeployCommits) DeployDailyMap() map[string]int {
 
 	return deployMap
 }
+
+func (ds DeployCommits) Authors() map[string]DeployCommits {
+	authors := map[string]DeployCommits{}
+	for _, d := range ds {
+		if _, ok := authors[d.AuthorName]; !ok {
+			authors[d.AuthorName] = []DeployCommit{}
+		}
+
+		authors[d.AuthorName] = append(authors[d.AuthorName], d)
+	}
+
+	return authors
+}
