@@ -96,18 +96,15 @@ func (service ReportService) GenerateDeployList(p model.ProjectRepository, ds []
 		}
 
 		report.BulletList(
-			[]string{fmt.Sprintf(
-				"%v (%v), lead time: %v",
-				time.Unix(d.DeployedAt, 0).Format("2006-01-02 15:04:05"),
-				markdownCommitLink(p.Org, p.Name, d.Hash),
-				date.SecondsInHumanReadableFormat(d.LeadTime),
-			)}, 0)
-
-		commitHashes := []string{}
-		for _, c := range commits {
-			commitHashes = append(commitHashes, markdownCommitLink(p.Org, p.Name, c.CommitHash))
-		}
-		report.BulletList(commitHashes, 1)
+			[]string{
+				fmt.Sprintf(
+					"%v (%v), Lead Time: %v, %v commits",
+					time.Unix(d.DeployedAt, 0).Format("2006-01-02 15:04:05"),
+					markdownCommitLink(p.Org, p.Name, d.Hash),
+					date.SecondsInHumanReadableFormat(d.LeadTime),
+					len(commits),
+				),
+			}, 0)
 	}
 
 	return nil
@@ -121,21 +118,19 @@ func (service ReportService) GenerateForRepository(report infra.ReportGenerator,
 		return err
 	}
 
-	deployMap := map[string]int{}
-	for _, d := range ds {
-		c := time.Unix(d.DeployedAt, 0).Format("2006-01-02")
-		if _, ok := deployMap[c]; !ok {
-			deployMap[c] = 0
-		}
-
-		deployMap[c] += 1
-	}
+	deployMap := ds.DeployDailyMap()
 
 	today := time.Now()
 	current := date.StartOfMonth(today)
 	for current.Month() <= today.Month() {
 		current = current.Add(24 * time.Hour)
 	}
+
+	report.Append(`### Summary`)
+	report.BulletList([]string{
+		fmt.Sprintf("Total Deployments: %v", len(ds)),
+		fmt.Sprintf("Avg Lead Time: %v", date.SecondsInHumanReadableFormat(ds.LeadTimeAvg())),
+	}, 0)
 
 	report.Append(`### Deployment frequency`)
 	if err := service.GenerateDeployCalendar(deployMap, report, start, end); err != nil {
