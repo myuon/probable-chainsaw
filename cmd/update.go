@@ -4,7 +4,6 @@ import (
 	"fmt"
 	"github.com/go-git/go-git/v5/plumbing/object"
 	"github.com/myuon/probable-chainsaw/infra"
-	"github.com/myuon/probable-chainsaw/lib/date"
 	"github.com/myuon/probable-chainsaw/model"
 	"github.com/rs/zerolog/log"
 	"gorm.io/driver/sqlite"
@@ -99,6 +98,47 @@ func (service UpdateService) UpdateRepositoryCommits(p model.ProjectRepository) 
 	return nil
 }
 
+func (service UpdateService) UpdateDeployCommitRelationsOver(p model.ProjectRepository, startDate time.Time, endDate time.Time) error {
+	current := startDate
+
+	for current.Before(endDate) {
+		deploys, err := service.deployCommitRepository.FindBetweenDeployedAt(current.Unix(), current.Add(24*time.Hour).Unix())
+		if err != nil {
+			return err
+		}
+
+		for _, d := range deploys {
+			bin, err := exec.Command("git", "-C", p.WorkPath(), "log", "--pretty=format:%H", fmt.Sprintf("%v..%v", d.PreviousHash, d.Hash)).Output()
+			if err != nil {
+				return err
+			}
+
+			relations := []infra.DeployCommitRelation{}
+			for _, hash := range strings.Split(string(bin), "\n") {
+				if hash == "" {
+					continue
+				}
+
+				relations = append(relations, infra.DeployCommitRelation{
+					DeployHash: d.Hash,
+					CommitHash: hash,
+				})
+			}
+
+			if err := service.deployCommitRelationRepository.Create(relations); err != nil {
+				return err
+			}
+
+			log.Info().Msgf("%v", string(bin))
+		}
+
+		log.Info().Int(fmt.Sprintf("%v (%v)", current.Format("2006-01-02"), current.Weekday()), len(deploys)).Msg("Deployment frequency")
+		current = current.Add(24 * time.Hour)
+	}
+
+	return nil
+}
+
 func CmdUpdate(configFile string) error {
 	project, err := infra.LoadProject(configFile)
 	if err != nil {
@@ -130,46 +170,10 @@ func CmdUpdate(configFile string) error {
 	}
 
 	// update deployment table
+	datesCount := 28
 	for _, p := range project.Repository {
-
-		dateCount := 30
-		d := time.Now().Add(-time.Duration(dateCount) * 24 * time.Hour)
-
-		for i := 0; i < dateCount; i++ {
-			start, end := date.StartAndEndOfDay(d)
-
-			deploys, err := service.deployCommitRepository.FindBetweenDeployedAt(start.Unix(), end.Unix())
-			if err != nil {
-				return err
-			}
-
-			for _, d := range deploys {
-				bin, err := exec.Command("git", "-C", p.WorkPath(), "log", "--pretty=format:%H", fmt.Sprintf("%v..%v", d.PreviousHash, d.Hash)).Output()
-				if err != nil {
-					return err
-				}
-
-				relations := []infra.DeployCommitRelation{}
-				for _, hash := range strings.Split(string(bin), "\n") {
-					if hash == "" {
-						continue
-					}
-
-					relations = append(relations, infra.DeployCommitRelation{
-						DeployHash: d.Hash,
-						CommitHash: hash,
-					})
-				}
-
-				if err := service.deployCommitRelationRepository.Create(relations); err != nil {
-					return err
-				}
-
-				log.Info().Msgf("%v", string(bin))
-			}
-
-			log.Info().Int(fmt.Sprintf("%v (%v)", d.Format("2006-01-02"), d.Weekday()), len(deploys)).Msg("Deployment frequency")
-			d = d.Add(24 * time.Hour)
+		if err := service.UpdateDeployCommitRelationsOver(p, time.Now().Add(-24*time.Hour*time.Duration(datesCount)), time.Now()); err != nil {
+			return err
 		}
 	}
 
