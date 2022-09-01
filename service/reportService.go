@@ -41,21 +41,20 @@ func NewReportService(db *gorm.DB) ReportService {
 	}
 }
 
-func (service ReportService) GenerateDeployCalendar(deployMap map[string]int, report infra.ReportGenerator) error {
-	today := time.Now()
-	current := date.StartOfMonth(today)
+func (service ReportService) GenerateDeployCalendar(deployMap map[string]int, report infra.ReportGenerator, start time.Time, end time.Time) error {
+	current := start
 	current = current.Add(-24 * time.Hour * time.Duration(current.Weekday()))
 	week := []int{}
 
 	markdown := `|Sun|Mon|Tue|Wed|Thu|Fri|Sat|SumOfWeekday|
 |---|---|---|---|---|---|---|---|`
 
-	for current.Month() <= today.Month() {
+	for current.Before(end) {
 		if current.Weekday() == 0 {
 			markdown += "\n|"
 		}
 
-		if current.Month() < today.Month() {
+		if current.Month() < start.Month() {
 			markdown += fmt.Sprintf(" |")
 		} else {
 			count, ok := deployMap[current.Format("2006-01-02")]
@@ -70,7 +69,7 @@ func (service ReportService) GenerateDeployCalendar(deployMap map[string]int, re
 			}
 		}
 
-		current = current.Add(24 * time.Hour)
+		current = current.AddDate(0, 0, 1)
 
 		if current.Weekday() == 0 {
 			sort.Ints(week)
@@ -130,7 +129,6 @@ func (service ReportService) GenerateForRepository(report infra.ReportGenerator,
 
 		deployMap[c] += 1
 	}
-	log.Info().Str("deployMap", fmt.Sprintf("%v", deployMap)).Msg(p.RepositoryName())
 
 	today := time.Now()
 	current := date.StartOfMonth(today)
@@ -139,7 +137,7 @@ func (service ReportService) GenerateForRepository(report infra.ReportGenerator,
 	}
 
 	report.Append(`### Deployment frequency`)
-	if err := service.GenerateDeployCalendar(deployMap, report); err != nil {
+	if err := service.GenerateDeployCalendar(deployMap, report, start, end); err != nil {
 		return err
 	}
 
