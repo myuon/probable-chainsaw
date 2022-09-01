@@ -16,9 +16,17 @@ func (r ProjectRepository) WorkPath() string {
 	return fmt.Sprintf(".work/%v_%v", r.Org, r.Name)
 }
 
+func (r ProjectRepository) RepositoryName() string {
+	return fmt.Sprintf("%v/%v", r.Org, r.Name)
+}
+
+func (r ProjectRepository) GitHubUrl() string {
+	return fmt.Sprintf("git@github.com:%v/%v.git", r.Org, r.Name)
+}
+
 func (r ProjectRepository) Clone(auth transport.AuthMethod) (*git.Repository, error) {
 	repo, err := git.PlainClone(r.WorkPath(), false, &git.CloneOptions{
-		URL:      fmt.Sprintf("git@github.com:%v/%v.git", r.Org, r.Name),
+		URL:      r.GitHubUrl(),
 		Progress: os.Stdout,
 		Auth:     auth,
 	})

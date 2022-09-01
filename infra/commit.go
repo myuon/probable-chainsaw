@@ -24,7 +24,7 @@ func (r CommitRepository) ResetTable() error {
 	return nil
 }
 
-func (r CommitRepository) Save(commits object.CommitIter) error {
+func (r CommitRepository) Save(repositoryName string, commits object.CommitIter) error {
 	if err := commits.ForEach(func(c *object.Commit) error {
 		parent := ""
 		p, err := c.Parent(0)
@@ -33,11 +33,12 @@ func (r CommitRepository) Save(commits object.CommitIter) error {
 		}
 
 		if err := r.Db.Create(&model.Commit{
-			Hash:       c.Hash.String(),
-			AuthorName: c.Author.Name,
-			CreatedAt:  c.Author.When.Unix(),
-			DeployTag:  "",
-			Parent:     parent,
+			Hash:           c.Hash.String(),
+			AuthorName:     c.Author.Name,
+			CreatedAt:      c.Author.When.Unix(),
+			DeployTag:      "",
+			Parent:         parent,
+			RepositoryName: repositoryName,
 		}).Error; err != nil {
 			return err
 		}

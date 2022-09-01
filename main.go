@@ -68,6 +68,16 @@ func main() {
 		},
 	})
 	root.AddCommand(&cobra.Command{
+		Use:   "clone",
+		Short: "Clone or pull projects",
+		Run: func(command *cobra.Command, args []string) {
+			if err := cmd.CmdReport(configFile); err != nil {
+				log.Error().Stack().Err(err).Msg("Failed to report the project")
+				return
+			}
+		},
+	})
+	root.AddCommand(&cobra.Command{
 		Use:   "report",
 		Short: "Report the project",
 		Run: func(command *cobra.Command, args []string) {
